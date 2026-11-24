@@ -37,6 +37,12 @@ export function loadConfig(
   overrides: Partial<Record<string, string | undefined>> = {},
 ): GatewayConfig {
   const merged = { ...process.env, ...overrides };
+  if (!merged.DATABASE_URL && merged.POSTGRES_URL) {
+    merged.DATABASE_URL = merged.POSTGRES_URL;
+  }
+  if (!merged.REDIS_URL && merged.KV_URL) {
+    merged.REDIS_URL = merged.KV_URL;
+  }
   const env = envSchema.parse(merged);
 
   const routes: Record<string, ProviderEndpointConfig[]> = {
