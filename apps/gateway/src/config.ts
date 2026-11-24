@@ -73,7 +73,7 @@ export function loadConfig(
       provider: 'groq',
       baseUrl: 'https://api.groq.com/openai/v1',
       apiKey: env.GROQ_API_KEY.trim(),
-      upstreamModel: (merged.GROQ_SMART_MODEL || 'llama-3.3-70b-versatile').trim(),
+      upstreamModel: (merged.GROQ_SMART_MODEL || 'openai/gpt-oss-120b').trim(),
     },
     {
       provider: 'gemini',

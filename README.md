@@ -1,6 +1,8 @@
 # CacheRoute
 
-> **Status: v1.0 Complete — All Unit, Integration, and `B1`–`B5` Benchmarks Verified.**
+> **Status: v1.0 Live in Production — CI Green, Local `B1`–`B5` Benchmarks & Live Vercel + Neon + Upstash Deployment Verified.**
+>
+> **Live API Base URL:** `https://gateway-one-coral.vercel.app` (Vercel Fluid Compute `iad1` + Neon `pgvector` + Upstash Redis)
 
 An OpenAI-compatible LLM gateway built with TypeScript and Fastify 5 featuring two-tier exact + semantic caching, multi-provider failover, distributed Redis circuit breakers, token-bucket rate limiting, daily token budgets, and observability.
 
@@ -75,6 +77,15 @@ All benchmarks run **locally** against `mock-llm` with Docker Compose (`pgvector
 | **B4** | Rate-limit accuracy (100-request burst) | Exact expected `429` count (`60` rpm / `20` burst) | **`20` `200 OK` / `80` `429 Too Many Requests`** (100% atomic accuracy) |
 | **B5** | Cache-hit throughput (40 concurrency) | Max RPS with `p95 < 100 ms` | **`3,526 RPS`** (`p50 = 10.71 ms`, **`p95 = 19.19 ms`**, `p99 = 22.35 ms`) |
 | **TTFT** | Streaming SSE cache replay vs 250ms mock | Near-instant synthetic SSE TTFT | Exact **`p95 = 4.34 ms`**, Semantic **`p95 = 9.77 ms`** (vs `389.11 ms` miss) |
+
+### Live Production Smoke Test (`Vercel iad1` + `Neon pgvector` + `Upstash Redis`)
+
+| Live Check | Provider / Tier | Measured Server Latency |
+| :--- | :--- | :---: |
+| **`POST /v1/chat/completions` (`MISS`)** | Groq (`openai/gpt-oss-20b`, `cr-fast`) | `991 ms` |
+| **`POST /v1/chat/completions` (`HIT-EXACT`)** | Upstash Redis L1 (`iad1`) | **`7 ms`** *(141× speedup)* |
+| **`POST /v1/chat/completions` (`HIT-SEMANTIC`)** | ONNX (`Xenova/all-MiniLM-L6-v2` q8) + Neon `pgvector` HNSW (`similarity: 0.9657`) | **`26 ms`** *(38× speedup)* |
+| **`POST /v1/chat/completions` (`stream: true` hit)** | Synthetic SSE cache replay (`data: [DONE]`) | **`7 ms` TTFT** |
 
 ## Quick Start
 
