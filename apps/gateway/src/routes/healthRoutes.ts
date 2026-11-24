@@ -13,6 +13,22 @@ export function registerHealthRoutes(
     metrics: MetricsRegistry;
   },
 ): void {
+  app.get('/', async () => ({
+    service: 'CacheRoute LLM Gateway',
+    status: 'ok',
+    version: '1.0.0',
+    endpoints: {
+      chatCompletions: 'POST /v1/chat/completions',
+      models: 'GET /v1/models',
+      health: 'GET /healthz',
+      ready: 'GET /readyz',
+      metrics: 'GET /metrics',
+      adminKeys: 'POST /admin/keys',
+      adminStats: 'GET /admin/stats?window=24h',
+    },
+    docs: 'https://github.com/hasibshahriyar/CacheRoute',
+  }));
+
   app.get('/healthz', async () => ({
     status: 'ok',
   }));
