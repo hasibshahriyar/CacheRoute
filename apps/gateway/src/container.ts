@@ -83,14 +83,18 @@ export function createContainer(overrides: ContainerOverrides = {}): GatewayCont
   const logger = overrides.logger;
   const clock = overrides.clock ?? new SystemClock();
 
+  const isVercel = Boolean(process.env.VERCEL);
+  const isTlsRedis = config.env.REDIS_URL.startsWith('rediss://');
+
   const redis =
     overrides.redis ??
     new Redis(config.env.REDIS_URL, {
       maxRetriesPerRequest: 1,
-      connectTimeout: 500,
-      commandTimeout: 500,
+      connectTimeout: isVercel ? 5000 : 500,
+      commandTimeout: isVercel ? 3000 : 500,
       lazyConnect: true,
       enableOfflineQueue: true,
+      ...(isTlsRedis ? { tls: {} } : {}),
     });
 
   // Prevent unhandled Redis error crashes in degraded mode
@@ -98,20 +102,24 @@ export function createContainer(overrides: ContainerOverrides = {}): GatewayCont
     logger?.warn({ err: err.message }, 'Redis connection error event');
   });
 
+  const isRemotePg =
+    config.env.DATABASE_URL.includes('sslmode=require') ||
+    config.env.DATABASE_URL.includes('neon.tech');
+
   const pgPool =
     overrides.pgPool ??
     new pg.Pool({
       connectionString: config.env.DATABASE_URL,
-      max: 10,
-      connectionTimeoutMillis: 3000,
+      max: isVercel ? 5 : 10,
+      connectionTimeoutMillis: isVercel ? 10000 : 3000,
       idleTimeoutMillis: 30000,
+      ...(isRemotePg ? { ssl: { rejectUnauthorized: false } } : {}),
     });
 
   pgPool.on('error', (err) => {
     logger?.warn({ err: err.message }, 'Postgres pool error event');
   });
 
-  const isVercel = Boolean(process.env.VERCEL);
   if (isVercel) {
     try {
       attachDatabasePool(pgPool);

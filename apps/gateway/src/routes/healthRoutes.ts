@@ -36,19 +36,23 @@ export function registerHealthRoutes(
   app.get('/readyz', async (_request, reply) => {
     let redisOk = false;
     let pgOk = false;
+    let redisError: string | undefined;
+    let pgError: string | undefined;
 
     try {
       const pong = await deps.redis.ping();
       redisOk = pong === 'PONG';
-    } catch {
+    } catch (err: unknown) {
       redisOk = false;
+      redisError = err instanceof Error ? err.message : 'redis_error';
     }
 
     try {
       await deps.pgPool.query('SELECT 1');
       pgOk = true;
-    } catch {
+    } catch (err: unknown) {
       pgOk = false;
+      pgError = err instanceof Error ? err.message : 'postgres_error';
     }
 
     const embedderReady = deps.embeddingModel.isReady();
@@ -62,6 +66,23 @@ export function registerHealthRoutes(
         postgres: pgOk,
         embedderLoaded: embedderReady,
       },
+      ...(allOk
+        ? {}
+        : {
+            diagnostics: {
+              redisError,
+              pgError,
+              envConfigured: {
+                database: Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL),
+                redis: Boolean(
+                  process.env.REDIS_URL ||
+                  process.env.KV_URL ||
+                  process.env.UPSTASH_REDIS_URL ||
+                  process.env.STORAGE_URL,
+                ),
+              },
+            },
+          }),
     };
   });
 

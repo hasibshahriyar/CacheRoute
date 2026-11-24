@@ -37,11 +37,13 @@ export function loadConfig(
   overrides: Partial<Record<string, string | undefined>> = {},
 ): GatewayConfig {
   const merged = { ...process.env, ...overrides };
-  if (!merged.DATABASE_URL && merged.POSTGRES_URL) {
-    merged.DATABASE_URL = merged.POSTGRES_URL;
+  if (!merged.DATABASE_URL) {
+    merged.DATABASE_URL =
+      merged.POSTGRES_URL || merged.POSTGRES_PRISMA_URL || merged.DATABASE_URL_UNPOOLED;
   }
-  if (!merged.REDIS_URL && merged.KV_URL) {
-    merged.REDIS_URL = merged.KV_URL;
+  if (!merged.REDIS_URL) {
+    merged.REDIS_URL =
+      merged.KV_URL || merged.UPSTASH_REDIS_URL || merged.STORAGE_URL || merged.REDIS_TLS_URL;
   }
   const env = envSchema.parse(merged);
 
