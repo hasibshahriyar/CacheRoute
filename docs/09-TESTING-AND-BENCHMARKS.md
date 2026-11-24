@@ -75,14 +75,15 @@ Executed locally via Docker `grafana/k6` (`bench/k6/*.js`) for HTTP scenarios an
 | **B4 — Rate-Limit Accuracy** | Fresh bucket (`60` rpm, `20` burst). Fire instant `100`-request burst. | Exactly `20` `200 OK` + `80` `429` responses (with `Retry-After`) |
 | **B5 — Cache-Hit Throughput** | Ramp virtual users against pre-warmed L1 exact cache. | Record maximum sustained RPS while `p95 < 100 ms` |
 
-### Results Template *(fill after Phase 6 execution)*
+### Measured Results *(Phase 6 Verified)*
 
-- **Hardware:** `CPU: TBD | RAM: TBD | OS: Windows (Docker Desktop)`
+- **Hardware:** `CPU: AMD Ryzen 7 7700 8-Core Processor (16 logical cores) | RAM: 15.1 GB | OS: Windows 11 (x64, build 26300) | Node.js v24.7.0 | Docker 29.4.3`
 
 | Benchmark | Metric | Target | Measured |
 | :--- | :--- | :--- | :--- |
-| **B1** | Added `p50` / `p95` / `p99` overhead | `p95 < 15 ms` | TBD |
-| **B2** | Hit rate / Exact `p95` / Semantic `p95` / FP | `p95 < 10 ms` / `< 60 ms` / `<= 1%` | TBD |
-| **B3** | Success rate / `p95` under faults | `>= 99.9%` | TBD |
-| **B4** | Allowed vs `429` on 100-req burst | `20` ok / `80` `429` | TBD |
-| **B5** | Peak RPS under `p95 < 100 ms` | Max RPS | TBD |
+| **B1** | Added `p50` / `p95` / `p99` overhead | `p95 < 15 ms` | **`p50 = 8.60 ms` / `p95 = 14.92 ms`** |
+| **B2** | Hit rate / Exact `p95` / Semantic `p95` / FP | `p95 < 10 ms` / `< 60 ms` / `<= 1%` | **`59.4%` hit rate / Exact `p95 = 7.08 ms` / Semantic `p95 = 15.25 ms` / FP `0.00%`** |
+| **B3** | Success rate / `p95` under faults | `>= 99.9%` | **`100.00%` (`200/200`) / `p95 = 33.52 ms`** |
+| **B4** | Allowed vs `429` on 100-req burst | `20` ok / `80` `429` | **`20` `200 OK` / `80` `429 Too Many Requests`** |
+| **B5** | Peak RPS under `p95 < 100 ms` | Max RPS | **`3,526 RPS` (`p50 = 10.71 ms`, `p95 = 19.19 ms`, `p99 = 22.35 ms`)** |
+| **TTFT** | Streaming SSE replay TTFT | Near-instant TTFT | **Exact `p95 = 4.34 ms` / Semantic `p95 = 9.77 ms` (vs `389.11 ms` miss)** |

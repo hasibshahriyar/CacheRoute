@@ -1,0 +1,15 @@
+FROM node:24-slim
+
+WORKDIR /app
+
+COPY package.json ./
+COPY scripts ./scripts
+COPY tsconfig.json ./
+COPY tsconfig.build.json ./
+COPY src ./src
+
+RUN npm install --omit=dev && npx tsc -p tsconfig.build.json && node scripts/copy-assets.mjs
+
+EXPOSE 3000
+ENV PORT=3000
+CMD ["node", "dist/server.js"]

@@ -1,0 +1,31 @@
+{
+  "name": "cacheroute",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenAI-compatible LLM gateway with two-tier exact + semantic caching, multi-provider failover, and Redis circuit breakers",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "lint": "eslint \"apps/*/src/**/*.ts\" \"apps/*/tests/**/*.ts\" \"bench/**/*.ts\" && prettier --check \"apps/*/src/**/*.ts\" \"apps/*/tests/**/*.ts\" \"bench/**/*.ts\"",
+    "format": "prettier --write \"apps/*/src/**/*.ts\" \"apps/*/tests/**/*.ts\" \"bench/**/*.ts\"",
+    "test:unit": "npm --workspace @cacheroute/gateway run test:unit",
+    "test:integration": "npm --workspace @cacheroute/gateway run test:integration",
+    "calibrate": "npx tsx bench/datasets/calibrate.ts",
+    "bench:ttft": "npx tsx bench/ttft/ttft.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "eslint": "^9.21.0",
+    "prettier": "^3.5.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.25.0"
+  }
+}
