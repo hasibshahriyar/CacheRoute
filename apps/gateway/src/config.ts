@@ -47,47 +47,54 @@ export function loadConfig(
   }
   const env = envSchema.parse(merged);
 
+  const crFastAll: ProviderEndpointConfig[] = [
+    {
+      provider: 'groq',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      apiKey: env.GROQ_API_KEY.trim(),
+      upstreamModel: 'llama-3.1-8b-instant',
+    },
+    {
+      provider: 'gemini',
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      apiKey: env.GEMINI_API_KEY.trim(),
+      upstreamModel: 'gemini-2.5-flash-lite',
+    },
+    {
+      provider: 'openrouter',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      apiKey: env.OPENROUTER_API_KEY.trim(),
+      upstreamModel: 'openrouter/free',
+    },
+  ];
+
+  const crSmartAll: ProviderEndpointConfig[] = [
+    {
+      provider: 'groq',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      apiKey: env.GROQ_API_KEY.trim(),
+      upstreamModel: 'llama-3.3-70b-versatile',
+    },
+    {
+      provider: 'gemini',
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      apiKey: env.GEMINI_API_KEY.trim(),
+      upstreamModel: 'gemini-2.5-flash',
+    },
+    {
+      provider: 'openrouter',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      apiKey: env.OPENROUTER_API_KEY.trim(),
+      upstreamModel: 'openrouter/free',
+    },
+  ];
+
+  const configuredFast = crFastAll.filter((p) => p.apiKey.length > 0);
+  const configuredSmart = crSmartAll.filter((p) => p.apiKey.length > 0);
+
   const routes: Record<string, ProviderEndpointConfig[]> = {
-    'cr-fast': [
-      {
-        provider: 'groq',
-        baseUrl: 'https://api.groq.com/openai/v1',
-        apiKey: env.GROQ_API_KEY,
-        upstreamModel: 'llama-3.1-8b-instant',
-      },
-      {
-        provider: 'gemini',
-        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-        apiKey: env.GEMINI_API_KEY,
-        upstreamModel: 'gemini-2.5-flash-lite',
-      },
-      {
-        provider: 'openrouter',
-        baseUrl: 'https://openrouter.ai/api/v1',
-        apiKey: env.OPENROUTER_API_KEY,
-        upstreamModel: 'meta-llama/llama-3.1-8b-instruct:free',
-      },
-    ],
-    'cr-smart': [
-      {
-        provider: 'groq',
-        baseUrl: 'https://api.groq.com/openai/v1',
-        apiKey: env.GROQ_API_KEY,
-        upstreamModel: 'llama-3.3-70b-versatile',
-      },
-      {
-        provider: 'gemini',
-        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-        apiKey: env.GEMINI_API_KEY,
-        upstreamModel: 'gemini-2.5-flash',
-      },
-      {
-        provider: 'openrouter',
-        baseUrl: 'https://openrouter.ai/api/v1',
-        apiKey: env.OPENROUTER_API_KEY,
-        upstreamModel: 'meta-llama/llama-3.3-70b-instruct:free',
-      },
-    ],
+    'cr-fast': configuredFast.length > 0 ? configuredFast : crFastAll,
+    'cr-smart': configuredSmart.length > 0 ? configuredSmart : crSmartAll,
   };
 
   if (env.NODE_ENV !== 'production' || Boolean(merged.MOCK_LLM_URL)) {

@@ -66,6 +66,11 @@ export function registerHealthRoutes(
         postgres: pgOk,
         embedderLoaded: embedderReady,
       },
+      providersConfigured: {
+        groq: Boolean(process.env.GROQ_API_KEY?.trim()),
+        gemini: Boolean(process.env.GEMINI_API_KEY?.trim()),
+        openrouter: Boolean(process.env.OPENROUTER_API_KEY?.trim()),
+      },
       ...(allOk
         ? {}
         : {

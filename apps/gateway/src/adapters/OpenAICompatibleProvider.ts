@@ -84,29 +84,31 @@ export class OpenAICompatibleProvider implements LlmProvider {
   ): UpstreamProviderError {
     let message = `Upstream ${this.name} returned HTTP ${status}`;
     try {
-      const parsed = JSON.parse(bodyText) as { error?: { message?: string } };
-      if (parsed?.error?.message) {
-        message = parsed.error.message;
+      const parsed: unknown = JSON.parse(bodyText);
+      const firstObj = Array.isArray(parsed)
+        ? (parsed[0] as { error?: { message?: string } } | undefined)
+        : (parsed as { error?: { message?: string } } | undefined);
+      if (firstObj?.error?.message) {
+        message = `[${this.name}] ${firstObj.error.message}`;
+      } else if (bodyText.trim().length > 0) {
+        message = `[${this.name}] ${bodyText.slice(0, 240)}`;
       }
     } catch {
       if (bodyText.trim().length > 0) {
-        message = bodyText.slice(0, 200);
+        message = `[${this.name}] ${bodyText.slice(0, 240)}`;
       }
     }
 
-    // 400, 404, 422 -> client bad request, do not failover and do not trip breaker
-    if (status === 400 || status === 404 || status === 422) {
-      return new UpstreamProviderError({
-        provider: this.name,
-        statusCode: status,
-        message,
-        isFailoverEligible: false,
-        countsAsBreakerFailure: false,
-      });
-    }
+    const lowerMsg = message.toLowerCase();
+    const isProviderKeyOrModelError =
+      lowerMsg.includes('api key') ||
+      lowerMsg.includes('api_key') ||
+      lowerMsg.includes('not found') ||
+      lowerMsg.includes('decommissioned') ||
+      lowerMsg.includes('permission denied');
 
-    // 401, 403 -> failover + trip breaker + CRITICAL alert
-    if (status === 401 || status === 403) {
+    // 401, 403, or Google Gemini 400 API_KEY_INVALID / model-not-found -> failover + trip breaker
+    if (status === 401 || status === 403 || (status === 400 && isProviderKeyOrModelError)) {
       return new UpstreamProviderError({
         provider: this.name,
         statusCode: status,
@@ -114,6 +116,27 @@ export class OpenAICompatibleProvider implements LlmProvider {
         isFailoverEligible: true,
         countsAsBreakerFailure: true,
         isCriticalAuthAlert: true,
+      });
+    }
+
+    // 400, 404, 422 -> client bad request (unless provider model 404)
+    if (status === 404 && isProviderKeyOrModelError) {
+      return new UpstreamProviderError({
+        provider: this.name,
+        statusCode: status,
+        message,
+        isFailoverEligible: true,
+        countsAsBreakerFailure: true,
+      });
+    }
+
+    if (status === 400 || status === 404 || status === 422) {
+      return new UpstreamProviderError({
+        provider: this.name,
+        statusCode: status,
+        message,
+        isFailoverEligible: false,
+        countsAsBreakerFailure: false,
       });
     }
 
