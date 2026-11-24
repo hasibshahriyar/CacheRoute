@@ -1,3 +1,4 @@
+import { attachDatabasePool } from '@vercel/functions';
 import type { FastifyBaseLogger } from 'fastify';
 import { Redis } from 'ioredis';
 import pg from 'pg';
@@ -111,6 +112,13 @@ export function createContainer(overrides: ContainerOverrides = {}): GatewayCont
   });
 
   const isVercel = Boolean(process.env.VERCEL);
+  if (isVercel) {
+    try {
+      attachDatabasePool(pgPool);
+    } catch {
+      // Ignore if running outside Vercel Fluid Compute
+    }
+  }
   const backgroundTasks =
     overrides.backgroundTasks ??
     (isVercel ? new VercelBackgroundTasks(logger) : new InlineBackgroundTasks(logger));

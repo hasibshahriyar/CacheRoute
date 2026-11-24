@@ -1,5 +1,9 @@
-import { pipeline, type FeatureExtractionPipeline } from '@huggingface/transformers';
+import { env, pipeline, type FeatureExtractionPipeline } from '@huggingface/transformers';
 import type { EmbeddingModel } from '../ports/index.js';
+
+if (process.env.VERCEL) {
+  env.cacheDir = '/tmp/hf-cache';
+}
 
 /**
  * Singleton ONNX embedding adapter using Xenova/all-MiniLM-L6-v2 (quantized q8, 384 dims).
