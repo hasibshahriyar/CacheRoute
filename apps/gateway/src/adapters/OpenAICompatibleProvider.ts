@@ -104,6 +104,9 @@ export class OpenAICompatibleProvider implements LlmProvider {
       lowerMsg.includes('api key') ||
       lowerMsg.includes('api_key') ||
       lowerMsg.includes('not found') ||
+      lowerMsg.includes('does not exist') ||
+      lowerMsg.includes('not supported') ||
+      lowerMsg.includes('do not have access') ||
       lowerMsg.includes('decommissioned') ||
       lowerMsg.includes('permission denied');
 

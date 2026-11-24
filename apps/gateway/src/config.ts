@@ -52,19 +52,19 @@ export function loadConfig(
       provider: 'groq',
       baseUrl: 'https://api.groq.com/openai/v1',
       apiKey: env.GROQ_API_KEY.trim(),
-      upstreamModel: 'llama-3.1-8b-instant',
+      upstreamModel: (merged.GROQ_FAST_MODEL || 'openai/gpt-oss-20b').trim(),
     },
     {
       provider: 'gemini',
       baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
       apiKey: env.GEMINI_API_KEY.trim(),
-      upstreamModel: 'gemini-2.5-flash-lite',
+      upstreamModel: (merged.GEMINI_FAST_MODEL || 'gemini-2.5-flash-lite').trim(),
     },
     {
       provider: 'openrouter',
       baseUrl: 'https://openrouter.ai/api/v1',
       apiKey: env.OPENROUTER_API_KEY.trim(),
-      upstreamModel: 'openrouter/free',
+      upstreamModel: (merged.OPENROUTER_FAST_MODEL || 'openrouter/free').trim(),
     },
   ];
 
@@ -73,19 +73,19 @@ export function loadConfig(
       provider: 'groq',
       baseUrl: 'https://api.groq.com/openai/v1',
       apiKey: env.GROQ_API_KEY.trim(),
-      upstreamModel: 'llama-3.3-70b-versatile',
+      upstreamModel: (merged.GROQ_SMART_MODEL || 'llama-3.3-70b-versatile').trim(),
     },
     {
       provider: 'gemini',
       baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
       apiKey: env.GEMINI_API_KEY.trim(),
-      upstreamModel: 'gemini-2.5-flash',
+      upstreamModel: (merged.GEMINI_SMART_MODEL || 'gemini-2.5-flash').trim(),
     },
     {
       provider: 'openrouter',
       baseUrl: 'https://openrouter.ai/api/v1',
       apiKey: env.OPENROUTER_API_KEY.trim(),
-      upstreamModel: 'openrouter/free',
+      upstreamModel: (merged.OPENROUTER_SMART_MODEL || 'openrouter/free').trim(),
     },
   ];
 

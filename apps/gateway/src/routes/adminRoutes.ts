@@ -89,4 +89,45 @@ export function registerAdminRoutes(
       newNamespace,
     };
   });
+
+  app.get('/admin/providers/models', async (request) => {
+    verifyAdminToken(request, deps.adminToken);
+    const probes: Array<{ name: string; url: string; key: string }> = [
+      {
+        name: 'groq',
+        url: 'https://api.groq.com/openai/v1/models',
+        key: process.env.GROQ_API_KEY?.trim() ?? '',
+      },
+      {
+        name: 'gemini',
+        url: 'https://generativelanguage.googleapis.com/v1beta/openai/models',
+        key: process.env.GEMINI_API_KEY?.trim() ?? '',
+      },
+    ];
+
+    const results: Record<string, unknown> = {};
+    for (const p of probes) {
+      if (!p.key) {
+        results[p.name] = { configured: false };
+        continue;
+      }
+      try {
+        const res = await fetch(p.url, {
+          headers: { Authorization: `Bearer ${p.key}` },
+        });
+        if (!res.ok) {
+          results[p.name] = { status: res.status, error: (await res.text()).slice(0, 200) };
+        } else {
+          const data = (await res.json()) as { data?: Array<{ id: string }> };
+          results[p.name] = {
+            status: res.status,
+            models: (data.data ?? []).map((m) => m.id).slice(0, 25),
+          };
+        }
+      } catch (err: unknown) {
+        results[p.name] = { error: err instanceof Error ? err.message : 'fetch_failed' };
+      }
+    }
+    return results;
+  });
 }
