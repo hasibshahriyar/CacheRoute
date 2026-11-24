@@ -2,7 +2,9 @@ FROM node:24-slim
 
 WORKDIR /app
 
-COPY package.json ./
+ENV npm_config_onnxruntime_node_install_cuda=skip
+
+COPY .npmrc package.json ./
 COPY apps/gateway/package.json ./apps/gateway/
 
 RUN npm install --workspace @cacheroute/gateway --include-workspace-root=false

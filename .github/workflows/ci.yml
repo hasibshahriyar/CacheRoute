@@ -46,6 +46,8 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
+        env:
+          npm_config_onnxruntime_node_install_cuda: skip
         run: npm ci
 
       - name: Lint & Format Check
