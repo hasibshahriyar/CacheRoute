@@ -356,11 +356,11 @@
         (item, idx) => `
       <tr>
         <td class="prompt-cell" title="${escapeHtml(item.prompt)}">
-          <div>${escapeHtml(item.prompt)}</div>
-          <div class="mono muted" style="font-size:0.68rem">${escapeHtml(item.time)}${item.similarity ? ` · sim ${escapeHtml(item.similarity)}` : ''}</div>
+          <div class="prompt-line">${escapeHtml(item.prompt)}</div>
+          <div class="mono muted" style="font-size:0.68rem">${escapeHtml(item.time)}<span class="compact-prov"> · ${escapeHtml(item.provider)}</span>${item.similarity ? ` · sim ${escapeHtml(item.similarity)}` : ''}</div>
         </td>
         <td><span class="badge ${badgeClass(item.cache)}">${escapeHtml(item.cache)}</span></td>
-        <td class="mono small">${escapeHtml(item.provider)}</td>
+        <td class="mono small col-provider">${escapeHtml(item.provider)}</td>
         <td>${renderLatencyWaterfall(item.gwMs)}</td>
         <td>
           <div class="row-actions">
