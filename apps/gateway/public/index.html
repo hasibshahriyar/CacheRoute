@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CacheRoute — Two-Tier LLM Gateway</title>
+    <style>
+      :root {
+        --bg: #09090b;
+        --card: #121216;
+        --border: #27272a;
+        --text: #fafafa;
+        --muted: #a1a1aa;
+        --accent: #38bdf8;
+        --green: #22c55e;
+        --purple: #a855f7;
+        --amber: #f59e0b;
+        --red: #ef4444;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 36px 20px 64px;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 28px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: -0.02em;
+      }
+      .subtitle {
+        color: var(--muted);
+        margin: 6px 0 0;
+        font-size: 15px;
+      }
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .pill {
+        font-size: 12px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+      .dot.ok {
+        background: var(--green);
+      }
+      .dot.err {
+        background: var(--red);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .stat-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .stat-label {
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .stat-val {
+        font-size: 22px;
+        font-weight: 700;
+        margin-top: 4px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .card h2 {
+        margin: 0 0 12px;
+        font-size: 17px;
+      }
+      .presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #1c1c22;
+        color: var(--text);
+        padding: 8px 12px;
+        font-size: 13px;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      button:hover {
+        border-color: var(--accent);
+        background: #23232c;
+      }
+      button.primary {
+        background: var(--accent);
+        color: #04131c;
+        border-color: var(--accent);
+        font-weight: 600;
+        padding: 10px 18px;
+      }
+      button.primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      input,
+      select,
+      textarea {
+        font: inherit;
+        background: #0b0b0f;
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 76px;
+        resize: vertical;
+      }
+      .grow {
+        flex: 1;
+        min-width: 220px;
+      }
+      .meta-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .badge {
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+      }
+      .badge.exact {
+        background: rgba(34, 197, 94, 0.15);
+        border-color: var(--green);
+        color: #86efac;
+      }
+      .badge.semantic {
+        background: rgba(168, 85, 247, 0.16);
+        border-color: var(--purple);
+        color: #d8b4fe;
+      }
+      .badge.miss {
+        background: rgba(245, 158, 11, 0.15);
+        border-color: var(--amber);
+        color: #fcd34d;
+      }
+      .badge.bypass {
+        background: rgba(161, 161, 170, 0.15);
+        color: #d4d4d8;
+      }
+      pre {
+        background: #0b0b0f;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 13.5px;
+        margin: 12px 0 0;
+        min-height: 54px;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      footer {
+        color: var(--muted);
+        font-size: 13px;
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div>
+          <h1>CacheRoute LLM Gateway</h1>
+          <p class="subtitle">
+            OpenAI-compatible Fastify 5 gateway with L1 Redis exact cache, L2 pgvector HNSW semantic
+            cache, Entity Guard, and Groq &rarr; Gemini &rarr; OpenRouter failover.
+          </p>
+        </div>
+        <div class="pill-row" id="healthPills">
+          <span class="pill"><span class="dot" id="dotPg"></span>Neon pgvector</span>
+          <span class="pill"><span class="dot" id="dotRedis"></span>Upstash Redis</span>
+          <span class="pill"><span class="dot" id="dotProviders"></span>LLM Providers</span>
+        </div>
+      </header>
+
+      <div class="grid">
+        <div class="stat-card">
+          <div class="stat-label">L1 Exact Cache</div>
+          <div class="stat-val" style="color: var(--green)">~7 ms</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">L2 Semantic (384d ONNX)</div>
+          <div class="stat-val" style="color: var(--purple)">~26 ms</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Peak Throughput (B5)</div>
+          <div class="stat-val">3,526 RPS</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Calibrated False Positives</div>
+          <div class="stat-val" style="color: var(--accent)">0.00%</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Interactive Live Playground</h2>
+        <div class="presets">
+          <button type="button" data-prompt="Explain what a Redis Lua script is in one short sentence.">
+            1. Original Prompt (MISS / L1 Exact)
+          </button>
+          <button
+            type="button"
+            data-prompt="In one short sentence, explain what a Lua script in Redis is."
+          >
+            2. Paraphrase (L2 Semantic Hit)
+          </button>
+          <button type="button" data-prompt="What is the status of order 1421?">
+            3. Entity Guard Trap (order 1421)
+          </button>
+          <button type="button" data-prompt="What is the status of order 1422?">
+            4. Entity Guard Trap (order 1422)
+          </button>
+        </div>
+
+        <div class="row">
+          <input
+            id="apiKey"
+            class="grow"
+            type="password"
+            value="cr_live_e1354cd8b38739f516a950bc66c000a2"
+            placeholder="Virtual API Key (cr_live_...)"
+          />
+          <select id="model">
+            <option value="cr-fast">cr-fast (Groq &rarr; Gemini &rarr; OpenRouter)</option>
+            <option value="cr-smart">cr-smart (120B &rarr; Gemini Flash &rarr; OpenRouter)</option>
+          </select>
+          <label class="pill" style="cursor: pointer">
+            <input id="bypass" type="checkbox" style="margin: 0" /> Bypass Cache
+          </label>
+          <label class="pill" style="cursor: pointer">
+            <input id="stream" type="checkbox" style="margin: 0" /> SSE Stream
+          </label>
+        </div>
+
+        <textarea id="prompt">Explain what a Redis Lua script is in one short sentence.</textarea>
+
+        <div class="row" style="margin-top: 12px; align-items: center">
+          <button id="sendBtn" class="primary" type="button">Send to /v1/chat/completions</button>
+          <span id="statusText" style="color: var(--muted); font-size: 13px"></span>
+        </div>
+
+        <div class="meta-bar" id="metaBar"></div>
+        <pre id="output">Click a preset above and press "Send" to test live caching and failover.</pre>
+      </div>
+
+      <footer>
+        <span>
+          Endpoints: <a href="/healthz">/healthz</a> &middot; <a href="/readyz">/readyz</a> &middot;
+          <a href="/debug/embed">/debug/embed</a>
+        </span>
+        <span>
+          Source &amp; Benchmarks:
+          <a href="https://github.com/hasibshahriyar/CacheRoute" target="_blank" rel="noreferrer"
+            >github.com/hasibshahriyar/CacheRoute</a
+          >
+        </span>
+      </footer>
+    </div>
+
+    <script>
+      async function loadReady() {
+        try {
+          const res = await fetch('/readyz');
+          const data = await res.json();
+          document.getElementById('dotPg').className = 'dot ' + (data.checks?.postgres ? 'ok' : 'err');
+          document.getElementById('dotRedis').className = 'dot ' + (data.checks?.redis ? 'ok' : 'err');
+          const p = data.providersConfigured || {};
+          const anyProv = p.groq || p.gemini || p.openrouter;
+          document.getElementById('dotProviders').className = 'dot ' + (anyProv ? 'ok' : 'err');
+        } catch {
+          document.getElementById('dotPg').className = 'dot err';
+          document.getElementById('dotRedis').className = 'dot err';
+        }
+      }
+
+      document.querySelectorAll('[data-prompt]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.getElementById('prompt').value = btn.getAttribute('data-prompt');
+        });
+      });
+
+      document.getElementById('sendBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('sendBtn');
+        const out = document.getElementById('output');
+        const meta = document.getElementById('metaBar');
+        const statusText = document.getElementById('statusText');
+
+        const apiKey = document.getElementById('apiKey').value.trim();
+        const model = document.getElementById('model').value;
+        const prompt = document.getElementById('prompt').value.trim();
+        const bypass = document.getElementById('bypass').checked;
+        const stream = document.getElementById('stream').checked;
+
+        if (!prompt) return;
+
+        btn.disabled = true;
+        out.textContent = '';
+        meta.innerHTML = '';
+        statusText.textContent = 'Sending request...';
+
+        const headers = {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + apiKey,
+        };
+        if (bypass) headers['x-cacheroute-cache'] = 'bypass';
+
+        const t0 = performance.now();
+        try {
+          const res = await fetch('/v1/chat/completions', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              model,
+              messages: [{ role: 'user', content: prompt }],
+              temperature: 0.2,
+              stream,
+            }),
+          });
+
+          const cache = res.headers.get('x-cacheroute-cache') || 'NONE';
+          const provider = res.headers.get('x-cacheroute-provider') || 'unknown';
+          const gwMs = res.headers.get('x-cacheroute-latency-ms') || '-';
+          const attempts = res.headers.get('x-cacheroute-attempts') || '-';
+          const sim = res.headers.get('x-cacheroute-similarity');
+          const remaining = res.headers.get('x-ratelimit-remaining-requests');
+
+          const badgeClass =
+            cache === 'HIT-EXACT'
+              ? 'exact'
+              : cache === 'HIT-SEMANTIC'
+                ? 'semantic'
+                : cache === 'MISS'
+                  ? 'miss'
+                  : 'bypass';
+
+          const badges = [
+            `<span class="badge ${badgeClass}">Cache: ${cache}</span>`,
+            `<span class="badge">Provider: ${provider}</span>`,
+            `<span class="badge">Gateway: ${gwMs} ms</span>`,
+            `<span class="badge">Attempts: ${attempts}</span>`,
+          ];
+          if (sim) badges.push(`<span class="badge semantic">Similarity: ${sim}</span>`);
+          if (remaining !== null) badges.push(`<span class="badge">Quota left: ${remaining}</span>`);
+          meta.innerHTML = badges.join('');
+
+          if (!res.ok) {
+            out.textContent = await res.text();
+            statusText.textContent = `HTTP ${res.status} (${Math.round(performance.now() - t0)} ms round-trip)`;
+            return;
+          }
+
+          if (!stream) {
+            const json = await res.json();
+            out.textContent = json.choices?.[0]?.message?.content || JSON.stringify(json, null, 2);
+            statusText.textContent = `HTTP 200 (${Math.round(performance.now() - t0)} ms round-trip)`;
+          } else {
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buf = '';
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buf += decoder.decode(value, { stream: true });
+              const lines = buf.split('\n');
+              buf = lines.pop() || '';
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed.startsWith('data:')) continue;
+                const payload = trimmed.slice(5).trim();
+                if (payload === '[DONE]') continue;
+                try {
+                  const chunk = JSON.parse(payload);
+                  const delta = chunk.choices?.[0]?.delta?.content;
+                  if (delta) out.textContent += delta;
+                } catch {}
+              }
+            }
+            statusText.textContent = `SSE complete (${Math.round(performance.now() - t0)} ms total)`;
+          }
+        } catch (err) {
+          out.textContent = String(err);
+          statusText.textContent = 'Request failed';
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      loadReady();
+    </script>
+  </body>
+</html>

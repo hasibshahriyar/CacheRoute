@@ -2,7 +2,7 @@
 
 > **Status: v1.0 Live in Production — CI Green, Local `B1`–`B5` Benchmarks & Live Vercel + Neon + Upstash Deployment Verified.**
 >
-> **Live API Base URL:** `https://gateway-one-coral.vercel.app` (Vercel Fluid Compute `iad1` + Neon `pgvector` + Upstash Redis)
+> **Live Playground & API URL:** https://cacheroute-gateway.vercel.app (Vercel Fluid Compute `iad1` + Neon `pgvector` + Upstash Redis)
 
 An OpenAI-compatible LLM gateway built with TypeScript and Fastify 5 featuring two-tier exact + semantic caching, multi-provider failover, distributed Redis circuit breakers, token-bucket rate limiting, daily token budgets, and observability.
 

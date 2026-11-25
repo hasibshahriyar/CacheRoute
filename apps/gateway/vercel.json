@@ -10,12 +10,28 @@
   },
   "rewrites": [
     {
-      "source": "/",
-      "destination": "/api/index.ts"
+      "source": "/v1/(.*)",
+      "destination": "/api/index"
     },
     {
-      "source": "/(.*)",
-      "destination": "/api/index.ts"
+      "source": "/admin/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/debug/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/healthz",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/readyz",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/metrics",
+      "destination": "/api/index"
     }
   ]
 }
