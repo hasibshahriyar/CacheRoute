@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CacheRoute — AI Gateway Mission Control</title>
+    <title>CacheRoute — AI Gateway Console</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,15 +17,23 @@
       <aside class="sidebar">
         <div class="sidebar-top">
           <div class="brand">
-            <div class="brand-mark">CR</div>
+            <div class="brand-mark" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="5" cy="12" r="2.5" />
+                <circle cx="19" cy="6" r="2.5" />
+                <circle cx="19" cy="18" r="2.5" />
+                <path d="M7.5 12h4.2c1.5 0 2.3-.8 2.8-2.2l.5-1.6c.4-1.3 1.1-2.2 1.5-2.2" />
+                <path d="M7.5 12h4.2c1.5 0 2.3.8 2.8 2.2l.5 1.6c.4 1.3 1.1 2.2 1.5 2.2" />
+              </svg>
+            </div>
             <div class="brand-text">
               <div class="brand-title">CacheRoute</div>
-              <div class="brand-sub">LLM Gateway · <span id="regionLabel">iad1</span></div>
+              <div class="brand-sub mono"><span id="regionLabel">iad1</span> · v1.0</div>
             </div>
           </div>
 
-          <!-- Compact inline status pills (shown on mobile/tablet top bar) -->
-          <div class="mobile-health-strip">
+          <!-- Compact inline status pills (shown on mobile/portrait top bar) -->
+          <div class="mobile-health-strip" aria-label="Infrastructure status">
             <span class="mini-pill" title="Neon pgvector"><span class="dot" id="dotPgMobile"></span>PG</span>
             <span class="mini-pill" title="Upstash Redis"><span class="dot" id="dotRedisMobile"></span>Redis</span>
             <span class="mini-pill" title="LLM Providers"><span class="dot" id="dotProvMobile"></span>LLMs</span>
@@ -33,45 +41,69 @@
         </div>
 
         <nav class="nav" id="sidebarNav" aria-label="Console navigation">
+          <div class="nav-section-label">Console</div>
           <button class="nav-item active" data-tab="playground" type="button">
-            <span class="nav-icon">&#9654;</span>
-            <span>Playground &amp; Tracer</span>
+            <svg class="nav-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="4 17 10 11 4 5" />
+              <line x1="12" y1="19" x2="20" y2="19" />
+            </svg>
+            <span>Playground</span>
+            <span class="nav-hint">1</span>
           </button>
           <button class="nav-item" data-tab="analytics" type="button">
-            <span class="nav-icon">&#9636;</span>
+            <svg class="nav-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 3v18h18" />
+              <path d="m19 9-5 5-4-4-3 3" />
+            </svg>
             <span>Analytics &amp; Breakers</span>
+            <span class="nav-hint">2</span>
           </button>
           <button class="nav-item" data-tab="logs" type="button">
-            <span class="nav-icon">&#9776;</span>
+            <svg class="nav-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
             <span>Request Logs</span>
             <span class="nav-count tabular" id="navLogCount">0</span>
           </button>
           <button class="nav-item" data-tab="sdk" type="button">
-            <span class="nav-icon">&lt;/&gt;</span>
-            <span>SDK &amp; Admin</span>
+            <svg class="nav-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+            <span>SDK &amp; Keys</span>
+            <span class="nav-hint">4</span>
           </button>
         </nav>
 
         <div class="sidebar-footer">
           <div class="health-box">
-            <div class="health-title">Infrastructure Health</div>
+            <div class="health-title">System Status</div>
             <div class="health-row">
-              <span><span class="dot pulse" id="dotPg"></span>Neon pgvector</span>
+              <span class="health-name"><span class="dot pulse" id="dotPg"></span>Neon pgvector</span>
               <span class="mono muted tabular" id="lblPg">...</span>
             </div>
             <div class="health-row">
-              <span><span class="dot pulse" id="dotRedis"></span>Upstash Redis</span>
+              <span class="health-name"><span class="dot pulse" id="dotRedis"></span>Upstash Redis</span>
               <span class="mono muted tabular" id="lblRedis">...</span>
             </div>
             <div class="health-row">
-              <span><span class="dot pulse" id="dotProviders"></span>LLM Failover</span>
+              <span class="health-name"><span class="dot pulse" id="dotProviders"></span>LLM Failover</span>
               <span class="mono muted tabular" id="lblProviders">...</span>
             </div>
           </div>
           <div class="footer-links">
-            <a href="https://github.com/hasibshahriyar/CacheRoute" target="_blank" rel="noreferrer"
-              >GitHub &nearr;</a
-            >
+            <a href="https://github.com/hasibshahriyar/CacheRoute" target="_blank" rel="noreferrer">
+              GitHub
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="7" y1="17" x2="17" y2="7" />
+                <polyline points="7 7 17 7 17 17" />
+              </svg>
+            </a>
             <a href="/readyz" target="_blank" rel="noreferrer">/readyz</a>
             <a href="/debug/embed" target="_blank" rel="noreferrer">/embed</a>
           </div>
@@ -84,58 +116,60 @@
                TAB 1: PLAYGROUND & LIVE PIPELINE TRACER
           ================================================================ -->
           <section class="tab-panel active" id="tab-playground">
-            <div class="page-head">
+            <header class="page-head">
               <div>
-                <h1>Playground &amp; Live Request Pipeline</h1>
+                <h1>Playground &amp; Request Tracer</h1>
                 <p class="muted">
-                  Send real prompts through CacheRoute and trace L1 Redis exact hits, L2 pgvector
-                  semantic hits, Entity Guard protection, and Groq &rarr; Gemini &rarr; OpenRouter failover.
+                  Test live prompts against L1 Redis exact cache, L2 pgvector semantic matching,
+                  Entity Guard protection, and automatic Groq &rarr; Gemini &rarr; OpenRouter failover.
                 </p>
               </div>
-              <div class="speedup-chip tabular hidden" id="speedupChip"></div>
-            </div>
+              <div class="head-actions">
+                <div class="speedup-chip tabular hidden" id="speedupChip"></div>
+              </div>
+            </header>
 
-            <!-- 6-Node Interactive Pipeline Diagram -->
+            <!-- 6-Stage Execution Path -->
             <div class="card pipeline-card">
               <div class="card-head-row">
-                <span class="eyebrow">Live Execution Path · 11-Stage Gateway Pipeline</span>
+                <span class="eyebrow">Request Pipeline · 11-Stage Execution Path</span>
                 <span class="mono muted small" id="pipelineSubtitle"
-                  >Send a prompt below to trace its route</span
+                  >Run a prompt below to trace live routing decisions</span
                 >
               </div>
               <div class="pipeline" id="pipelineDiagram">
                 <div class="p-node" data-node="client">
-                  <div class="p-step">Stage 1–3</div>
-                  <div class="p-name">Auth &amp; Zod</div>
+                  <div class="p-step">01–03</div>
+                  <div class="p-name">Auth &amp; Schema</div>
                   <div class="p-sub">SHA-256 cr_live_*</div>
                 </div>
-                <div class="p-arrow" aria-hidden="true">&rarr;</div>
+                <div class="p-conn" aria-hidden="true"></div>
                 <div class="p-node" data-node="ratelimit">
-                  <div class="p-step">Stage 4</div>
+                  <div class="p-step">04</div>
                   <div class="p-name">Rate Limit</div>
                   <div class="p-sub">Redis Lua Bucket</div>
                 </div>
-                <div class="p-arrow" aria-hidden="true">&rarr;</div>
+                <div class="p-conn" aria-hidden="true"></div>
                 <div class="p-node" data-node="guard">
-                  <div class="p-step">Stage 5</div>
+                  <div class="p-step">05</div>
                   <div class="p-name">Entity Guard</div>
                   <div class="p-sub">Digits / Email / URL</div>
                 </div>
-                <div class="p-arrow" aria-hidden="true">&rarr;</div>
+                <div class="p-conn" aria-hidden="true"></div>
                 <div class="p-node" data-node="l1">
-                  <div class="p-step">Stage 6</div>
+                  <div class="p-step">06</div>
                   <div class="p-name">L1 Exact</div>
                   <div class="p-sub">Upstash Redis</div>
                 </div>
-                <div class="p-arrow" aria-hidden="true">&rarr;</div>
+                <div class="p-conn" aria-hidden="true"></div>
                 <div class="p-node" data-node="l2">
-                  <div class="p-step">Stage 7</div>
+                  <div class="p-step">07</div>
                   <div class="p-name">L2 Semantic</div>
                   <div class="p-sub">ONNX 384d + HNSW</div>
                 </div>
-                <div class="p-arrow" aria-hidden="true">&rarr;</div>
+                <div class="p-conn" aria-hidden="true"></div>
                 <div class="p-node" data-node="upstream">
-                  <div class="p-step">Stage 8–10</div>
+                  <div class="p-step">08–10</div>
                   <div class="p-name">Provider Router</div>
                   <div class="p-sub" id="nodeUpstreamSub">Groq &rarr; Gemini &rarr; OR</div>
                 </div>
@@ -144,8 +178,8 @@
               <!-- Semantic Similarity Gauge (visible on HIT-SEMANTIC) -->
               <div class="sim-bar-wrap hidden" id="simBarWrap">
                 <div class="sim-bar-head">
-                  <span>Cosine Similarity (Xenova/all-MiniLM-L6-v2 q8 · 384 dims)</span>
-                  <span class="mono tabular" id="simBarVal">0.0000</span>
+                  <span>Cosine Similarity · <span class="mono muted">all-MiniLM-L6-v2 q8 (384d)</span></span>
+                  <span class="mono tabular sim-score" id="simBarVal">0.0000</span>
                 </div>
                 <div class="sim-track">
                   <div class="sim-threshold" style="left: 92%" title="Calibrated threshold: 0.92"></div>
@@ -153,106 +187,147 @@
                 </div>
                 <div class="sim-labels mono tabular">
                   <span>0.00</span>
-                  <span>Calibrated Threshold: 0.92 (0.00% FPR)</span>
+                  <span>Calibrated Threshold 0.92 · 0.00% FPR</span>
                   <span>1.00</span>
                 </div>
               </div>
             </div>
 
-            <!-- Adaptive 1-col (standard) -> 2-col (ultrawide / 4K >= 1520px) -->
+            <!-- Adaptive 1-col -> 2-col Split -->
             <div class="playground-split">
               <!-- Prompt Workbench -->
               <div class="card workbench-card">
                 <div class="card-head-row">
                   <h2>Prompt Workbench</h2>
-                  <span class="muted small mono">Ctrl + Enter to send</span>
+                  <span class="muted small" id="presetGuide">Click a scenario to test each gateway layer</span>
                 </div>
 
-                <div class="presets">
+                <div class="presets" role="group" aria-label="Test scenarios">
                   <button
                     type="button"
-                    class="preset-btn"
+                    class="preset-btn active"
                     data-prompt="Explain what a Redis Lua script is in one short sentence."
+                    data-guide="Send twice: 1st call warms the cache (MISS), 2nd call hits L1 Redis in ~7 ms."
                   >
-                    1. Original <span class="tag-mini">MISS / L1</span>
+                    <span>1. Original</span>
+                    <span class="tag-mini">MISS &rarr; L1</span>
                   </button>
                   <button
                     type="button"
                     class="preset-btn"
                     data-prompt="In one short sentence, explain what a Lua script in Redis is."
+                    data-guide="Rephrased wording matches #1 via ONNX + pgvector HNSW cosine similarity (>= 0.92)."
                   >
-                    2. Paraphrase <span class="tag-mini purple">L2 Semantic</span>
+                    <span>2. Paraphrase</span>
+                    <span class="tag-mini purple">L2 Semantic</span>
                   </button>
                   <button
                     type="button"
                     class="preset-btn"
                     data-prompt="What is the status of order 1421?"
+                    data-guide="Contains a 4-digit ID: Entity Guard skips L2 semantic cache to prevent cross-order leaks."
                   >
-                    3. Order 1421 <span class="tag-mini amber">Entity Guard</span>
+                    <span>3. Order 1421</span>
+                    <span class="tag-mini amber">Entity Guard</span>
                   </button>
                   <button
                     type="button"
                     class="preset-btn"
                     data-prompt="What is the status of order 1422?"
+                    data-guide="Different order number — proves Entity Guard blocks false semantic reuse of #1421."
                   >
-                    4. Order 1422 <span class="tag-mini amber">Entity Guard</span>
+                    <span>4. Order 1422</span>
+                    <span class="tag-mini amber">Entity Guard</span>
                   </button>
                   <button
                     type="button"
                     class="preset-btn"
                     data-prompt="Explain how HNSW vector indexing speeds up nearest-neighbor search in one sentence."
+                    data-guide="Fresh topic — calls upstream Groq/Gemini, then persists to L1 + L2 asynchronously."
                   >
-                    5. Fresh Topic <span class="tag-mini">MISS &rarr; Cache</span>
+                    <span>5. Fresh Topic</span>
+                    <span class="tag-mini">Cold MISS</span>
                   </button>
                 </div>
 
                 <div class="controls-grid">
                   <div class="field">
                     <label for="apiKey">Virtual API Key</label>
-                    <input
-                      id="apiKey"
-                      type="password"
-                      value="cr_live_e1354cd8b38739f516a950bc66c000a2"
-                      placeholder="cr_live_..."
-                    />
+                    <div class="input-with-btn">
+                      <input
+                        id="apiKey"
+                        type="password"
+                        value="cr_live_e1354cd8b38739f516a950bc66c000a2"
+                        placeholder="cr_live_..."
+                        autocomplete="off"
+                      />
+                      <button
+                        type="button"
+                        class="icon-btn"
+                        id="toggleKeyVis"
+                        title="Show or hide API key"
+                        aria-label="Show or hide API key"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   <div class="field">
                     <label for="model">Model Alias</label>
                     <select id="model">
-                      <option value="cr-fast">cr-fast (Groq 20B &rarr; Gemini Lite &rarr; OR)</option>
-                      <option value="cr-smart">cr-smart (Groq 120B &rarr; Gemini Flash &rarr; OR)</option>
+                      <option value="cr-fast">cr-fast · Groq 20B &rarr; Gemini Lite &rarr; OR</option>
+                      <option value="cr-smart">cr-smart · Groq 120B &rarr; Gemini Flash &rarr; OR</option>
                     </select>
                   </div>
                   <div class="field">
-                    <label>Request Options</label>
+                    <label>Options</label>
                     <div class="toggles">
-                      <label class="toggle-pill"><input id="bypass" type="checkbox" /> Bypass</label>
-                      <label class="toggle-pill"><input id="stream" type="checkbox" /> SSE Stream</label>
+                      <label class="switch-pill">
+                        <input id="bypass" type="checkbox" />
+                        <span class="switch-track" aria-hidden="true"></span>
+                        <span>Bypass</span>
+                      </label>
+                      <label class="switch-pill">
+                        <input id="stream" type="checkbox" />
+                        <span class="switch-track" aria-hidden="true"></span>
+                        <span>Stream SSE</span>
+                      </label>
                     </div>
                   </div>
                 </div>
 
                 <div class="field">
-                  <label for="prompt">User Prompt</label>
+                  <div class="field-label-row">
+                    <label for="prompt">Prompt</label>
+                    <span class="mono muted small tabular" id="promptCharCount">59 chars</span>
+                  </div>
                   <textarea id="prompt">Explain what a Redis Lua script is in one short sentence.</textarea>
                 </div>
 
                 <div class="action-bar">
                   <button id="sendBtn" class="btn-primary" type="button">
-                    Send Request <span class="kbd">Ctrl&#8629;</span>
+                    <span>Send Request</span>
+                    <span class="kbd">Ctrl&#8629;</span>
                   </button>
+                  <button id="copyOutputBtn" class="btn-ghost hidden" type="button">Copy Output</button>
                   <span class="mono muted small tabular" id="statusText"></span>
                 </div>
 
                 <div class="meta-bar" id="metaBar"></div>
-                <pre class="output-box" id="output">Choose a preset above and click "Send Request" to inspect the live gateway pipeline.</pre>
+                <pre class="output-box" id="output">Select a scenario above and press Send Request (or Ctrl+Enter) to trace a live request through CacheRoute.</pre>
               </div>
 
               <!-- Session Trace History -->
               <div class="card history-card">
                 <div class="card-head-row">
-                  <h2>Session Trace History</h2>
-                  <span class="muted small">Inspect headers or 1-click replay</span>
+                  <h2>Session History</h2>
+                  <div class="card-head-actions">
+                    <span class="muted small">Inspect headers or 1-click replay</span>
+                    <button class="btn-ghost small hidden" id="clearHistoryBtn" type="button">Clear</button>
+                  </div>
                 </div>
                 <div class="table-wrap">
                   <table class="data-table">
@@ -268,7 +343,8 @@
                     <tbody id="sessionHistoryBody">
                       <tr>
                         <td colspan="5" class="empty-cell">
-                          No requests sent in this browser session yet.
+                          <div class="empty-title">No session traces yet</div>
+                          <div class="empty-sub">Requests sent from the workbench appear here with latency bars and replay controls.</div>
                         </td>
                       </tr>
                     </tbody>
@@ -282,22 +358,27 @@
                TAB 2: LIVE ANALYTICS & CIRCUIT BREAKERS
           ================================================================ -->
           <section class="tab-panel" id="tab-analytics">
-            <div class="page-head">
+            <header class="page-head">
               <div>
-                <h1>Live Production Analytics &amp; Circuit Breakers</h1>
+                <h1>Analytics &amp; Circuit Breakers</h1>
                 <p class="muted">
-                  Real metrics queried from Neon PostgreSQL (<span class="mono">request_logs</span>)
-                  and live distributed breaker state from Upstash Redis.
+                  Live telemetry aggregated from Neon PostgreSQL (<span class="mono">request_logs</span>)
+                  and distributed breaker state from Upstash Redis.
                 </p>
               </div>
-              <div class="window-switcher" id="windowSwitcher">
+              <div class="window-switcher" id="windowSwitcher" role="group" aria-label="Time range">
                 <button class="win-btn" data-win="1h" type="button">1h</button>
                 <button class="win-btn active" data-win="24h" type="button">24h</button>
                 <button class="win-btn" data-win="7d" type="button">7d</button>
                 <button class="win-btn" data-win="30d" type="button">30d</button>
-                <button class="win-btn" id="refreshAnalyticsBtn" type="button" title="Refresh">&#8635;</button>
+                <button class="win-btn icon-only" id="refreshAnalyticsBtn" type="button" title="Refresh telemetry" aria-label="Refresh telemetry">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                    <polyline points="21 3 21 9 15 9" />
+                  </svg>
+                </button>
               </div>
-            </div>
+            </header>
 
             <div class="kpi-grid">
               <div class="kpi-card">
@@ -306,14 +387,14 @@
                 <div class="kpi-sub muted" id="kpiWindowLabel">Last 24h</div>
               </div>
               <div class="kpi-card">
-                <div class="kpi-label">Live Cache Hit Rate</div>
+                <div class="kpi-label">Cache Hit Rate</div>
                 <div class="kpi-val green tabular" id="kpiHitRate">—</div>
                 <div class="kpi-sub muted tabular" id="kpiHitBreakdown">Exact + Semantic</div>
               </div>
               <div class="kpi-card">
                 <div class="kpi-label">Tokens Saved (Est.)</div>
-                <div class="kpi-val cyan tabular" id="kpiTokensSaved">—</div>
-                <div class="kpi-sub muted">Avoided upstream spend</div>
+                <div class="kpi-val tabular" id="kpiTokensSaved">—</div>
+                <div class="kpi-sub muted">Avoided upstream LLM spend</div>
               </div>
               <div class="kpi-card">
                 <div class="kpi-label">Gateway Latency</div>
@@ -324,31 +405,37 @@
 
             <div class="two-col">
               <div class="card">
-                <h2>Cache Tier Distribution</h2>
+                <div class="card-head-row">
+                  <h2>Cache Tier Distribution</h2>
+                  <span class="muted small">L1 Exact vs L2 Semantic vs Upstream</span>
+                </div>
                 <div class="donut-layout">
-                  <svg class="donut-svg" viewBox="0 0 120 120" id="cacheDonut">
-                    <circle cx="60" cy="60" r="46" fill="none" stroke="#1e1e26" stroke-width="14" />
+                  <svg class="donut-svg" viewBox="0 0 120 120" id="cacheDonut" aria-label="Cache hit distribution">
+                    <circle cx="60" cy="60" r="46" fill="none" stroke="#1e1e26" stroke-width="12" />
                   </svg>
                   <div class="legend" id="cacheLegend"></div>
                 </div>
               </div>
 
               <div class="card">
-                <h2>Failover Routes &amp; Circuit Breakers</h2>
+                <div class="card-head-row">
+                  <h2>Failover Routes &amp; Circuit Breakers</h2>
+                  <span class="muted small">Redis atomic state machine</span>
+                </div>
                 <div id="breakerMatrix" class="breaker-list"></div>
               </div>
             </div>
 
             <div class="card">
               <div class="card-head-row">
-                <h2>Verified Local Benchmarks (B1–B5 · Docker Compose + mock-llm)</h2>
+                <h2>Verified Local Benchmarks · B1–B5</h2>
                 <span class="mono muted small">Ryzen 7 7700 · Node 24 · pgvector:pg17 · Redis 7</span>
               </div>
               <div class="bench-grid">
                 <div class="bench-item">
-                  <div class="bench-id">B1 · Overhead</div>
+                  <div class="bench-id">B1 · Added Overhead</div>
                   <div class="bench-num tabular">14.92 ms</div>
-                  <div class="bench-sub">Added p95 (target &lt; 15 ms)</div>
+                  <div class="bench-sub">p95 delta (target &lt; 15 ms)</div>
                 </div>
                 <div class="bench-item">
                   <div class="bench-id">B2 · Two-Tier Cache</div>
@@ -356,18 +443,18 @@
                   <div class="bench-sub">L1 / L2 p95 · 0.00% FPR</div>
                 </div>
                 <div class="bench-item">
-                  <div class="bench-id">B3 · Failover</div>
+                  <div class="bench-id">B3 · Fault Failover</div>
                   <div class="bench-num green tabular">100.0%</div>
-                  <div class="bench-sub">200/200 under 35% primary faults</div>
+                  <div class="bench-sub">200/200 under 35% faults</div>
                 </div>
                 <div class="bench-item">
-                  <div class="bench-id">B4 · Rate Limit</div>
+                  <div class="bench-id">B4 · Lua Rate Limit</div>
                   <div class="bench-num tabular">20 OK / 80 429</div>
-                  <div class="bench-sub">Exact atomic Lua accuracy</div>
+                  <div class="bench-sub">Exact burst enforcement</div>
                 </div>
                 <div class="bench-item">
-                  <div class="bench-id">B5 · Peak RPS</div>
-                  <div class="bench-num cyan tabular">3,526 RPS</div>
+                  <div class="bench-id">B5 · Peak Throughput</div>
+                  <div class="bench-num tabular">3,526 RPS</div>
                   <div class="bench-sub">p95 = 19.19 ms @ 40 VUs</div>
                 </div>
               </div>
@@ -378,20 +465,26 @@
                TAB 3: REQUEST LOGS EXPLORER
           ================================================================ -->
           <section class="tab-panel" id="tab-logs">
-            <div class="page-head">
+            <header class="page-head">
               <div>
-                <h1>Production Request Logs</h1>
+                <h1>Request Logs</h1>
                 <p class="muted">
-                  Live audit stream from Neon PostgreSQL (<span class="mono">request_logs</span> via
-                  Vercel <span class="mono">waitUntil</span>). Click any row to inspect its trace.
+                  Persisted audit stream from Neon PostgreSQL (<span class="mono">request_logs</span> via
+                  Vercel <span class="mono">waitUntil</span>). Select any row to inspect its trace.
                 </p>
               </div>
-              <button class="btn-secondary" id="refreshLogsBtn" type="button">&#8635; Refresh Logs</button>
-            </div>
+              <button class="btn-secondary" id="refreshLogsBtn" type="button">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                  <polyline points="21 3 21 9 15 9" />
+                </svg>
+                <span>Refresh</span>
+              </button>
+            </header>
 
             <div class="logs-split" id="logsSplit">
               <div class="card logs-table-card">
-                <div class="filter-chips" id="logFilters">
+                <div class="filter-chips" id="logFilters" role="group" aria-label="Filter logs">
                   <button class="chip active" data-filter="ALL" type="button">All</button>
                   <button class="chip" data-filter="HIT-EXACT" type="button">HIT-EXACT</button>
                   <button class="chip" data-filter="HIT-SEMANTIC" type="button">HIT-SEMANTIC</button>
@@ -409,7 +502,7 @@
                         <th>Cache</th>
                         <th>Model</th>
                         <th>Provider</th>
-                        <th>Latency Waterfall</th>
+                        <th>Latency</th>
                         <th>Tokens</th>
                         <th>Similarity</th>
                       </tr>
@@ -426,9 +519,13 @@
               <div class="card trace-drawer-card hidden" id="logDetailCard">
                 <div class="card-head-row">
                   <h2>Trace Inspector</h2>
-                  <button class="btn-secondary small" id="closeLogDetail" type="button">Close</button>
+                  <div class="card-head-actions">
+                    <button class="btn-ghost small" id="copyLogJsonBtn" type="button">Copy JSON</button>
+                    <button class="btn-secondary small" id="closeLogDetail" type="button">Close</button>
+                  </div>
                 </div>
-                <pre class="output-box mono" id="logDetailJson"></pre>
+                <div class="trace-summary-grid" id="logDetailSummary"></div>
+                <pre class="code-box mono" id="logDetailJson"></pre>
               </div>
             </div>
           </section>
@@ -437,29 +534,35 @@
                TAB 4: DROP-IN SDK QUICKSTART & ADMIN CONTROL PLANE
           ================================================================ -->
           <section class="tab-panel" id="tab-sdk">
-            <div class="page-head">
+            <header class="page-head">
               <div>
-                <h1>Drop-In OpenAI SDK &amp; Admin Control Plane</h1>
+                <h1>SDK Quickstart &amp; Virtual Keys</h1>
                 <p class="muted">
-                  Point any OpenAI-compatible app at CacheRoute by changing only
-                  <span class="mono">baseURL</span> and <span class="mono">apiKey</span>.
+                  Drop into any OpenAI SDK client by pointing <span class="mono">baseURL</span>
+                  at CacheRoute, and manage per-tenant virtual API keys and cache namespaces.
                 </p>
               </div>
-            </div>
+            </header>
 
             <div class="sdk-admin-split">
               <div class="card">
                 <div class="card-head-row">
-                  <h2>1-Line Integration Snippets</h2>
-                  <div class="sdk-tabs" id="sdkTabs">
-                    <button class="chip active" data-lang="ts" type="button">TypeScript</button>
-                    <button class="chip" data-lang="py" type="button">Python</button>
-                    <button class="chip" data-lang="curl" type="button">curl</button>
+                  <h2>Drop-In Integration</h2>
+                  <div class="segmented" id="sdkTabs" role="group" aria-label="SDK language">
+                    <button class="seg-btn active" data-lang="ts" type="button">TypeScript</button>
+                    <button class="seg-btn" data-lang="py" type="button">Python</button>
+                    <button class="seg-btn" data-lang="curl" type="button">curl</button>
                   </div>
                 </div>
                 <pre class="code-box mono" id="sdkCodeBox"></pre>
                 <div class="action-bar">
-                  <button class="btn-secondary" id="copySdkBtn" type="button">Copy Snippet</button>
+                  <button class="btn-secondary" id="copySdkBtn" type="button">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    <span>Copy Snippet</span>
+                  </button>
                   <span class="muted small" id="copySdkStatus"></span>
                 </div>
               </div>
@@ -467,16 +570,23 @@
               <div class="card admin-card">
                 <div class="card-head-row">
                   <h2>Admin Control Plane</h2>
-                  <span class="muted small">Session-only ADMIN_TOKEN</span>
+                  <div class="card-head-actions">
+                    <span class="admin-status-pill hidden" id="adminStatusPill">
+                      <span class="dot ok"></span>Session active
+                    </span>
+                    <button class="btn-ghost small hidden" id="lockAdminBtn" type="button">Lock</button>
+                    <span class="muted small" id="adminHintLabel">Session-only ADMIN_TOKEN</span>
+                  </div>
                 </div>
 
-                <div class="admin-unlock-grid">
+                <div class="admin-unlock-grid" id="adminUnlockForm">
                   <div class="field">
-                    <label for="adminTokenInput">ADMIN_TOKEN</label>
+                    <label for="adminTokenInput">Master Token</label>
                     <input
                       id="adminTokenInput"
                       type="password"
-                      placeholder="Enter your ADMIN_TOKEN..."
+                      placeholder="cr_admin_..."
+                      autocomplete="off"
                     />
                   </div>
                   <div class="field align-end">
@@ -487,35 +597,34 @@
                 </div>
 
                 <div id="adminUnlockedArea" class="hidden">
-                  <div class="divider"></div>
-                  <h3 class="subhead">Create Virtual API Key</h3>
+                  <h3 class="subhead">Provision Virtual API Key</h3>
                   <div class="create-key-grid">
                     <div class="field key-name-field">
                       <label for="newKeyName">Key Name</label>
-                      <input id="newKeyName" type="text" placeholder="e.g. portfolio-demo" />
+                      <input id="newKeyName" type="text" placeholder="e.g. prod-assistant" />
                     </div>
                     <div class="field">
                       <label for="newKeyRpm">RPM</label>
-                      <input id="newKeyRpm" type="number" value="30" />
+                      <input id="newKeyRpm" type="number" value="30" min="1" />
                     </div>
                     <div class="field">
                       <label for="newKeyBurst">Burst</label>
-                      <input id="newKeyBurst" type="number" value="10" />
+                      <input id="newKeyBurst" type="number" value="10" min="1" />
                     </div>
                     <div class="field key-budget-field">
                       <label for="newKeyBudget">Daily Tokens</label>
-                      <input id="newKeyBudget" type="number" value="50000" />
+                      <input id="newKeyBudget" type="number" value="50000" min="100" />
                     </div>
                     <div class="field align-end key-btn-field">
                       <button class="btn-primary full-width" id="createKeyBtn" type="button">
-                        + Create Key
+                        Create Key
                       </button>
                     </div>
                   </div>
 
                   <div class="created-key-banner hidden" id="createdKeyBanner"></div>
 
-                  <div class="table-wrap" style="margin-top: 16px">
+                  <div class="table-wrap" style="margin-top: 1rem">
                     <table class="data-table">
                       <thead>
                         <tr>
@@ -523,7 +632,7 @@
                           <th>Prefix</th>
                           <th>RPM / Burst</th>
                           <th>Daily Budget</th>
-                          <th>Namespace</th>
+                          <th>NS</th>
                           <th>Status</th>
                           <th>Actions</th>
                         </tr>
@@ -540,15 +649,21 @@
     </div>
 
     <!-- Modal for Session Trace Inspection -->
-    <div class="modal-backdrop hidden" id="traceModal">
+    <div class="modal-backdrop hidden" id="traceModal" role="dialog" aria-modal="true" aria-labelledby="traceModalTitle">
       <div class="modal-card">
         <div class="card-head-row">
-          <h2>Request Trace &amp; Headers</h2>
-          <button class="btn-secondary small" id="closeTraceModal" type="button">Close</button>
+          <h2 id="traceModalTitle">Request Trace &amp; Headers</h2>
+          <div class="card-head-actions">
+            <button class="btn-ghost small" id="copyModalJsonBtn" type="button">Copy JSON</button>
+            <button class="btn-secondary small" id="closeTraceModal" type="button">Close</button>
+          </div>
         </div>
-        <pre class="output-box mono" id="traceModalBody"></pre>
+        <pre class="code-box mono" id="traceModalBody"></pre>
       </div>
     </div>
+
+    <!-- Non-blocking Toast Notification Stack -->
+    <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
     <script src="/app.js"></script>
   </body>

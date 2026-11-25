@@ -5,6 +5,9 @@
   let currentSdkLang = 'ts';
   let cachedTelemetry = null;
   let lastMissMs = null;
+  let activeLogRawJson = '';
+  let activeModalRawJson = '';
+  let rawSdkText = '';
   const sessionHistory = [];
   let adminToken = sessionStorage.getItem('cr_admin_token') || '';
 
@@ -18,6 +21,78 @@
       .replace(/"/g, '&quot;');
   }
 
+  function showToast(message, type = 'info') {
+    const stack = $('toastStack');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = message;
+    stack.appendChild(el);
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(6px)';
+      el.style.transition = 'opacity 160ms ease, transform 160ms ease';
+      setTimeout(() => el.remove(), 180);
+    }, 3400);
+  }
+
+  async function copyText(text, label = 'Copied to clipboard') {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(label, 'ok');
+      return true;
+    } catch {
+      showToast('Clipboard write blocked by browser', 'err');
+      return false;
+    }
+  }
+
+  function highlightJson(objOrStr) {
+    const raw = typeof objOrStr === 'string' ? objOrStr : JSON.stringify(objOrStr, null, 2);
+    return escapeHtml(raw).replace(
+      /(&quot;(\\u[\da-fA-F]{4}|\\[^u]|[^\\&])*?&quot;(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
+      (match) => {
+        if (/^&quot;/.test(match)) {
+          if (/:$/.test(match)) return `<span class="tok-key">${match}</span>`;
+          return `<span class="tok-str">${match}</span>`;
+        }
+        if (/true|false|null/.test(match)) return `<span class="tok-bool">${match}</span>`;
+        return `<span class="tok-num">${match}</span>`;
+      },
+    );
+  }
+
+  function highlightCode(code, lang) {
+    let escaped = escapeHtml(code);
+    if (lang === 'curl') {
+      escaped = escaped
+        .replace(/^curl\b/gm, '<span class="tok-kw">curl</span>')
+        .replace(/(\s-[iHd]\b)/g, '<span class="tok-key">$1</span>')
+        .replace(/(&quot;[^&]*?&quot;)/g, '<span class="tok-str">$1</span>');
+      return escaped;
+    }
+    const kwPattern =
+      lang === 'py'
+        ? /\b(from|import|print|True|False|None)\b/g
+        : /\b(import|from|const|await|new|console)\b/g;
+    // Tokenize strings first so keywords inside strings stay green
+    return escaped.replace(/('[^']*'|&quot;[^&]*?&quot;)/g, '\u0001$1\u0002')
+      .split(/(\u0001[^\u0002]*\u0002)/g)
+      .map((part) => {
+        if (part.startsWith('\u0001')) {
+          return `<span class="tok-str">${part.slice(1, -1)}</span>`;
+        }
+        return part
+          .replace(kwPattern, '<span class="tok-kw">$1</span>')
+          .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="tok-num">$1</span>');
+      })
+      .join('');
+  }
+
+  function formatProviderName(name) {
+    const map = { groq: 'Groq', gemini: 'Gemini', openrouter: 'OpenRouter' };
+    return map[String(name || '').toLowerCase()] || name;
+  }
+
   function badgeClass(cacheStatus) {
     if (cacheStatus === 'HIT-EXACT') return 'exact';
     if (cacheStatus === 'HIT-SEMANTIC') return 'semantic';
@@ -29,7 +104,7 @@
   function renderLatencyWaterfall(ms) {
     const num = Number(ms);
     if (!Number.isFinite(num)) return `<span class="mono small muted">—</span>`;
-    const pct = Math.min(100, Math.max(4, Math.round((Math.log10(num + 1) / Math.log10(1500)) * 100)));
+    const pct = Math.min(100, Math.max(5, Math.round((Math.log10(num + 1) / Math.log10(1500)) * 100)));
     const cls = num <= 25 ? 'lat-fast' : num <= 100 ? 'lat-med' : 'lat-slow';
     return `<div class="lat-cell">
       <div class="lat-track"><div class="lat-fill ${cls}" style="width:${pct}%"></div></div>
@@ -38,22 +113,37 @@
   }
 
   // -------------------------------------------------------------------------
-  // Tab Navigation
+  // Tab Navigation + Keyboard Shortcuts (1–4, Esc)
   // -------------------------------------------------------------------------
+  function activateTab(target) {
+    const btn = document.querySelector(`.nav-item[data-tab="${target}"]`);
+    if (!btn) return;
+    document.querySelectorAll('.nav-item').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+    btn.classList.add('active');
+    $(`tab-${target}`).classList.add('active');
+    if (target === 'analytics' || target === 'logs') loadTelemetry();
+    if (target === 'sdk') renderSdkSnippet();
+  }
+
   document.querySelectorAll('.nav-item').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const target = btn.getAttribute('data-tab');
-      document.querySelectorAll('.nav-item').forEach((b) => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
-      btn.classList.add('active');
-      $(`tab-${target}`).classList.add('active');
-      if (target === 'analytics' || target === 'logs') {
-        loadTelemetry();
-      }
-      if (target === 'sdk') {
-        renderSdkSnippet();
-      }
-    });
+    btn.addEventListener('click', () => activateTab(btn.getAttribute('data-tab')));
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      $('traceModal').classList.add('hidden');
+      $('logDetailCard').classList.add('hidden');
+      $('logsSplit').classList.remove('has-detail');
+      document.querySelectorAll('#prodLogsBody tr.selected').forEach((r) => r.classList.remove('selected'));
+      return;
+    }
+    const tag = (document.activeElement?.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.metaKey || e.ctrlKey || e.altKey) {
+      return;
+    }
+    const map = { '1': 'playground', '2': 'analytics', '3': 'logs', '4': 'sdk' };
+    if (map[e.key]) activateTab(map[e.key]);
   });
 
   // -------------------------------------------------------------------------
@@ -107,8 +197,7 @@
   // Pipeline Animator (Tab 1)
   // -------------------------------------------------------------------------
   function updatePipeline({ cache, provider, similarity, prompt, bypass, latencyMs, ok }) {
-    const nodes = document.querySelectorAll('.p-node');
-    nodes.forEach((n) => {
+    document.querySelectorAll('.p-node').forEach((n) => {
       n.className = 'p-node';
     });
 
@@ -126,35 +215,35 @@
       set('l1', 'skipped');
       set('l2', 'skipped');
       set('upstream', ok ? 'upstream' : 'warn');
-      $('pipelineSubtitle').textContent = `Cache bypassed via header -> served by ${provider} (${latencyMs} ms)`;
+      $('pipelineSubtitle').textContent = `Cache bypassed via header · served by ${provider} (${latencyMs} ms)`;
     } else if (cache === 'HIT-EXACT') {
       set('guard', 'passed');
       set('l1', 'hit-exact');
       set('l2', 'skipped');
       set('upstream', 'skipped');
-      $('pipelineSubtitle').textContent = `Short-circuited at L1 Upstash Redis in ${latencyMs} ms (0 LLM calls)`;
+      $('pipelineSubtitle').textContent = `Short-circuited at L1 Upstash Redis in ${latencyMs} ms · 0 upstream LLM calls`;
     } else if (cache === 'HIT-SEMANTIC') {
       set('guard', 'passed');
       set('l1', 'passed');
       set('l2', 'hit-semantic');
       set('upstream', 'skipped');
-      $('pipelineSubtitle').textContent = `Short-circuited at L2 Neon pgvector (similarity ${similarity}) in ${latencyMs} ms`;
+      $('pipelineSubtitle').textContent = `Matched L2 Neon pgvector (cos ${similarity}) in ${latencyMs} ms · 0 upstream LLM calls`;
     } else {
       set('guard', entityTrap ? 'warn' : 'passed');
       set('l1', 'passed');
       set('l2', entityTrap ? 'skipped' : 'passed');
       set('upstream', ok ? 'upstream' : 'warn');
-      $('nodeUpstreamSub').textContent = provider || 'Groq -> Gemini -> OR';
+      $('nodeUpstreamSub').textContent = provider || 'Groq → Gemini → OR';
       $('pipelineSubtitle').textContent = entityTrap
-        ? `Entity Guard skipped L2 semantic cache -> called ${provider} (${latencyMs} ms)`
-        : `Cache MISS -> routed to ${provider} (${latencyMs} ms) & persisted via waitUntil`;
+        ? `Entity Guard bypassed L2 semantic cache · routed to ${provider} (${latencyMs} ms)`
+        : `Cache MISS · routed to ${provider} (${latencyMs} ms) & persisted asynchronously`;
     }
 
     const simWrap = $('simBarWrap');
     if (cache === 'HIT-SEMANTIC' && similarity) {
       const num = Number(similarity);
       simWrap.classList.remove('hidden');
-      $('simBarVal').textContent = `${num.toFixed(4)} (>= 0.92 threshold)`;
+      $('simBarVal').textContent = `${num.toFixed(4)} (>= 0.92)`;
       $('simBarFill').style.width = `${Math.min(100, Math.round(num * 100))}%`;
     } else {
       simWrap.classList.add('hidden');
@@ -172,7 +261,7 @@
       const baseline = lastMissMs || 991;
       const mult = Math.max(1, Math.round(baseline / Math.max(1, numericMs)));
       const saved = Math.max(0, baseline - numericMs);
-      $('speedupChip').textContent = `${mult}x faster · Saved ~${saved} ms vs upstream LLM`;
+      $('speedupChip').textContent = `${mult}x faster · Saved ~${saved} ms vs upstream`;
       $('speedupChip').classList.remove('hidden');
     }
   }
@@ -180,11 +269,28 @@
   // -------------------------------------------------------------------------
   // Playground Execution (Tab 1)
   // -------------------------------------------------------------------------
+  function updateCharCount() {
+    const len = $('prompt').value.length;
+    $('promptCharCount').textContent = `${len} chars`;
+  }
+
+  $('prompt').addEventListener('input', updateCharCount);
+
+  $('toggleKeyVis').addEventListener('click', () => {
+    const input = $('apiKey');
+    input.type = input.type === 'password' ? 'text' : 'password';
+  });
+
   document.querySelectorAll('.preset-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
+      document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
       $('prompt').value = btn.getAttribute('data-prompt') || '';
+      $('presetGuide').textContent = btn.getAttribute('data-guide') || '';
+      updateCharCount();
       $('metaBar').innerHTML = '';
-      $('output').textContent = 'Preset loaded — click "Send Request" (or Ctrl+Enter) to trace.';
+      $('output').textContent = 'Scenario loaded — press Send Request (or Ctrl+Enter) to trace.';
+      $('copyOutputBtn').classList.add('hidden');
       $('statusText').textContent = '';
     });
   });
@@ -194,6 +300,16 @@
       e.preventDefault();
       executePlaygroundRequest();
     }
+  });
+
+  $('copyOutputBtn').addEventListener('click', () => {
+    copyText($('output').textContent, 'Response copied');
+  });
+
+  $('clearHistoryBtn').addEventListener('click', () => {
+    sessionHistory.length = 0;
+    renderSessionHistory();
+    showToast('Session history cleared');
   });
 
   async function executePlaygroundRequest(overridePrompt) {
@@ -208,13 +324,18 @@
     const bypass = $('bypass').checked;
     const stream = $('stream').checked;
 
-    if (!prompt) return;
+    if (!prompt) {
+      showToast('Enter a prompt before sending', 'err');
+      return;
+    }
     $('prompt').value = prompt;
+    updateCharCount();
 
     btn.disabled = true;
     out.textContent = '';
     meta.innerHTML = '';
-    statusText.textContent = 'Executing 11-stage gateway pipeline...';
+    $('copyOutputBtn').classList.add('hidden');
+    statusText.textContent = 'Running gateway pipeline...';
 
     const headers = {
       'Content-Type': 'application/json',
@@ -244,14 +365,14 @@
       const requestId = res.headers.get('x-request-id') || '';
 
       const badges = [
-        `<span class="badge ${badgeClass(cache)}">Cache: ${escapeHtml(cache)}</span>`,
-        `<span class="badge">Provider: ${escapeHtml(provider)}</span>`,
-        `<span class="badge tabular">Gateway: ${escapeHtml(gwMs)} ms</span>`,
-        `<span class="badge tabular">Attempts: ${escapeHtml(attempts)}</span>`,
+        `<span class="badge ${badgeClass(cache)}">${escapeHtml(cache)}</span>`,
+        `<span class="badge">provider: ${escapeHtml(provider)}</span>`,
+        `<span class="badge tabular">gateway: ${escapeHtml(gwMs)} ms</span>`,
+        `<span class="badge tabular">attempts: ${escapeHtml(attempts)}</span>`,
       ];
-      if (sim) badges.push(`<span class="badge semantic tabular">Similarity: ${escapeHtml(sim)}</span>`);
+      if (sim) badges.push(`<span class="badge semantic tabular">sim: ${escapeHtml(sim)}</span>`);
       if (remaining !== null) {
-        badges.push(`<span class="badge tabular">Quota left: ${escapeHtml(remaining)}</span>`);
+        badges.push(`<span class="badge tabular">quota: ${escapeHtml(remaining)}</span>`);
       }
       meta.innerHTML = badges.join('');
 
@@ -271,13 +392,13 @@
       if (!res.ok) {
         responseContent = await res.text();
         out.textContent = responseContent;
-        statusText.textContent = `HTTP ${res.status} (${Math.round(performance.now() - t0)} ms round-trip)`;
+        statusText.textContent = `HTTP ${res.status} · ${Math.round(performance.now() - t0)} ms RTT`;
       } else if (!stream) {
         const json = await res.json();
         rawResponse = json;
         responseContent = json.choices?.[0]?.message?.content || JSON.stringify(json, null, 2);
         out.textContent = responseContent;
-        statusText.textContent = `HTTP 200 (${Math.round(performance.now() - t0)} ms round-trip)`;
+        statusText.textContent = `200 OK · ${Math.round(performance.now() - t0)} ms RTT`;
       } else {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -305,8 +426,10 @@
             }
           }
         }
-        statusText.textContent = `SSE complete (${Math.round(performance.now() - t0)} ms total)`;
+        statusText.textContent = `SSE complete · ${Math.round(performance.now() - t0)} ms`;
       }
+
+      if (responseContent) $('copyOutputBtn').classList.remove('hidden');
 
       sessionHistory.unshift({
         time: new Date().toLocaleTimeString(),
@@ -337,6 +460,7 @@
     } catch (err) {
       out.textContent = String(err);
       statusText.textContent = 'Request failed';
+      showToast('Network error calling gateway', 'err');
     } finally {
       btn.disabled = false;
     }
@@ -346,9 +470,12 @@
 
   function renderSessionHistory() {
     const tbody = $('sessionHistoryBody');
+    $('clearHistoryBtn').classList.toggle('hidden', sessionHistory.length === 0);
     if (sessionHistory.length === 0) {
-      tbody.innerHTML =
-        '<tr><td colspan="5" class="empty-cell">No requests sent in this browser session yet.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-cell">
+        <div class="empty-title">No session traces yet</div>
+        <div class="empty-sub">Requests sent from the workbench appear here with latency bars and replay controls.</div>
+      </td></tr>`;
       return;
     }
     tbody.innerHTML = sessionHistory
@@ -377,7 +504,8 @@
       b.addEventListener('click', (e) => {
         e.stopPropagation();
         const item = sessionHistory[Number(b.getAttribute('data-inspect'))];
-        $('traceModalBody').textContent = JSON.stringify(item, null, 2);
+        activeModalRawJson = JSON.stringify(item, null, 2);
+        $('traceModalBody').innerHTML = highlightJson(activeModalRawJson);
         $('traceModal').classList.remove('hidden');
       });
     });
@@ -392,6 +520,7 @@
   }
 
   $('closeTraceModal').addEventListener('click', () => $('traceModal').classList.add('hidden'));
+  $('copyModalJsonBtn').addEventListener('click', () => copyText(activeModalRawJson, 'Trace JSON copied'));
   $('traceModal').addEventListener('click', (e) => {
     if (e.target === $('traceModal')) $('traceModal').classList.add('hidden');
   });
@@ -408,8 +537,14 @@
     });
   });
 
-  $('refreshAnalyticsBtn').addEventListener('click', loadTelemetry);
-  $('refreshLogsBtn').addEventListener('click', loadTelemetry);
+  $('refreshAnalyticsBtn').addEventListener('click', async () => {
+    await loadTelemetry();
+    showToast('Telemetry refreshed', 'ok');
+  });
+  $('refreshLogsBtn').addEventListener('click', async () => {
+    await loadTelemetry();
+    showToast('Production logs refreshed', 'ok');
+  });
 
   function renderAnalytics(data) {
     const s = data.stats;
@@ -421,10 +556,10 @@
     $('kpiLatency').textContent = `${s.latencyMs.p50} / ${s.latencyMs.p95} ms`;
 
     const segments = [
-      { label: 'HIT-EXACT (L1 Redis)', value: s.cache.exactHits, color: '#22c55e' },
-      { label: 'HIT-SEMANTIC (L2 pgvector)', value: s.cache.semanticHits, color: '#a855f7' },
-      { label: 'MISS (Upstream LLM)', value: s.cache.misses, color: '#f59e0b' },
-      { label: 'BYPASS', value: s.cache.bypass, color: '#71717a' },
+      { label: 'HIT-EXACT · L1 Redis', value: s.cache.exactHits, color: '#22c55e' },
+      { label: 'HIT-SEMANTIC · L2 pgvector', value: s.cache.semanticHits, color: '#a78bfa' },
+      { label: 'MISS · Upstream LLM', value: s.cache.misses, color: '#f59e0b' },
+      { label: 'BYPASS · Forced fresh', value: s.cache.bypass, color: '#52525b' },
     ];
     const total = Math.max(1, segments.reduce((acc, x) => acc + x.value, 0));
     const r = 46;
@@ -432,19 +567,19 @@
     let offset = 0;
 
     const svgParts = [
-      `<circle cx="60" cy="60" r="${r}" fill="none" stroke="#1d1d26" stroke-width="14" />`,
+      `<circle cx="60" cy="60" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="11" />`,
     ];
     for (const seg of segments) {
       if (seg.value <= 0) continue;
       const len = (seg.value / total) * C;
       svgParts.push(
-        `<circle cx="60" cy="60" r="${r}" fill="none" stroke="${seg.color}" stroke-width="14" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-offset}" transform="rotate(-90 60 60)" />`,
+        `<circle cx="60" cy="60" r="${r}" fill="none" stroke="${seg.color}" stroke-width="11" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-offset}" transform="rotate(-90 60 60)" />`,
       );
       offset += len;
     }
     svgParts.push(
-      `<text x="60" y="57" text-anchor="middle" fill="#f4f4f6" font-size="16" font-weight="700">${(s.cache.hitRate * 100).toFixed(0)}%</text>`,
-      `<text x="60" y="72" text-anchor="middle" fill="#9898a6" font-size="9.5">HIT RATE</text>`,
+      `<text x="60" y="57" text-anchor="middle" fill="#f4f4f5" font-size="16" font-weight="600">${(s.cache.hitRate * 100).toFixed(0)}%</text>`,
+      `<text x="60" y="71" text-anchor="middle" fill="#8b8b99" font-size="8.5" letter-spacing="0.06em">HIT RATE</text>`,
     );
     $('cacheDonut').innerHTML = svgParts.join('');
 
@@ -465,22 +600,31 @@
 
     $('breakerMatrix').innerHTML = Object.entries(routes)
       .map(([alias, chain]) => {
-        const pills = chain
-          .map((ep) => {
+        const steps = chain
+          .map((ep, idx) => {
             const state = breakers[ep.provider] || 'CLOSED';
             const pStat = providersStats[ep.provider];
-            const statTag = pStat ? ` · ${pStat.requests} req / ${pStat.errors} err` : '';
-            return `<div class="breaker-pill">
-              <strong>${escapeHtml(ep.provider)}</strong>
-              <span class="b-state b-${escapeHtml(state)}">${escapeHtml(state)}</span>
-              <div class="mono muted" style="font-size:0.68rem">${escapeHtml(ep.upstreamModel)}${escapeHtml(statTag)}</div>
+            const statTag = pStat ? `${pStat.requests} req · ${pStat.errors} err` : 'standby';
+            return `<div class="breaker-step-row">
+              <div class="breaker-step-left">
+                <span class="prio-tag">P${idx + 1}</span>
+                <span class="breaker-prov-name">${escapeHtml(formatProviderName(ep.provider))}</span>
+                <span class="breaker-model mono">${escapeHtml(ep.upstreamModel)}</span>
+              </div>
+              <div class="breaker-step-right">
+                <span class="mono muted small tabular">${escapeHtml(statTag)}</span>
+                <span class="b-pill b-${escapeHtml(state)}">${escapeHtml(state)}</span>
+              </div>
             </div>`;
           })
-          .join('<span class="p-arrow">&rarr;</span>');
+          .join('');
 
         return `<div class="breaker-route">
-          <div class="breaker-alias">${escapeHtml(alias)}</div>
-          <div class="breaker-chain">${pills}</div>
+          <div class="breaker-route-head">
+            <span class="breaker-alias">${escapeHtml(alias)}</span>
+            <span class="mono muted small">${chain.length}-tier failover</span>
+          </div>
+          <div class="breaker-steps">${steps}</div>
         </div>`;
       })
       .join('');
@@ -501,7 +645,10 @@
   $('closeLogDetail').addEventListener('click', () => {
     $('logDetailCard').classList.add('hidden');
     $('logsSplit').classList.remove('has-detail');
+    document.querySelectorAll('#prodLogsBody tr.selected').forEach((r) => r.classList.remove('selected'));
   });
+
+  $('copyLogJsonBtn').addEventListener('click', () => copyText(activeLogRawJson, 'Log JSON copied'));
 
   function renderProductionLogs(logs) {
     const filtered = logs.filter((row) => {
@@ -513,7 +660,7 @@
     const tbody = $('prodLogsBody');
     if (filtered.length === 0) {
       tbody.innerHTML =
-        '<tr><td colspan="8" class="empty-cell">No matching logs found in Neon request_logs.</td></tr>';
+        '<tr><td colspan="8" class="empty-cell">No matching logs found for this filter.</td></tr>';
       return;
     }
 
@@ -536,8 +683,17 @@
 
     tbody.querySelectorAll('tr[data-log-idx]').forEach((tr) => {
       tr.addEventListener('click', () => {
+        tbody.querySelectorAll('tr.selected').forEach((r) => r.classList.remove('selected'));
+        tr.classList.add('selected');
         const row = filtered[Number(tr.getAttribute('data-log-idx'))];
-        $('logDetailJson').textContent = JSON.stringify(row, null, 2);
+        activeLogRawJson = JSON.stringify(row, null, 2);
+        $('logDetailSummary').innerHTML = `
+          <div class="trace-kv"><div class="trace-k">Cache Tier</div><div class="trace-v mono">${escapeHtml(row.cacheStatus)}</div></div>
+          <div class="trace-kv"><div class="trace-k">Latency</div><div class="trace-v mono tabular">${row.latencyMs} ms</div></div>
+          <div class="trace-kv"><div class="trace-k">Provider / Model</div><div class="trace-v mono">${escapeHtml(row.provider)} · ${escapeHtml(row.modelAlias)}</div></div>
+          <div class="trace-kv"><div class="trace-k">Tokens</div><div class="trace-v mono tabular">${row.promptTokens} in / ${row.completionTokens} out</div></div>
+        `;
+        $('logDetailJson').innerHTML = highlightJson(activeLogRawJson);
         $('logDetailCard').classList.remove('hidden');
         $('logsSplit').classList.add('has-detail');
       });
@@ -592,50 +748,58 @@ print(response.choices[0].message.content)`,
     "temperature": 0.2
   }'`,
     };
-    $('sdkCodeBox').textContent = snippets[currentSdkLang];
+    rawSdkText = snippets[currentSdkLang];
+    $('sdkCodeBox').innerHTML = highlightCode(rawSdkText, currentSdkLang);
   }
 
-  document.querySelectorAll('#sdkTabs .chip').forEach((btn) => {
+  document.querySelectorAll('#sdkTabs .seg-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       currentSdkLang = btn.getAttribute('data-lang') || 'ts';
-      document.querySelectorAll('#sdkTabs .chip').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('#sdkTabs .seg-btn').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       renderSdkSnippet();
     });
   });
 
   $('copySdkBtn').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText($('sdkCodeBox').textContent);
-      $('copySdkStatus').textContent = 'Copied to clipboard!';
-      setTimeout(() => ($('copySdkStatus').textContent = ''), 2000);
-    } catch {
-      $('copySdkStatus').textContent = 'Copy failed';
+    const ok = await copyText(rawSdkText, `${currentSdkLang.toUpperCase()} snippet copied`);
+    if (ok) {
+      $('copySdkStatus').textContent = 'Copied';
+      setTimeout(() => ($('copySdkStatus').textContent = ''), 1800);
     }
   });
 
-  async function loadAdminKeys() {
+  function setAdminLockedUI(unlocked) {
+    $('adminUnlockForm').classList.toggle('hidden', unlocked);
+    $('adminUnlockedArea').classList.toggle('hidden', !unlocked);
+    $('adminStatusPill').classList.toggle('hidden', !unlocked);
+    $('lockAdminBtn').classList.toggle('hidden', !unlocked);
+    $('adminHintLabel').classList.toggle('hidden', unlocked);
+  }
+
+  async function loadAdminKeys(silent = false) {
     if (!adminToken) return;
     const res = await fetch('/admin/keys', {
       headers: { Authorization: 'Bearer ' + adminToken },
     });
     if (!res.ok) {
-      alert('Invalid ADMIN_TOKEN');
+      showToast('Invalid ADMIN_TOKEN', 'err');
       adminToken = '';
       sessionStorage.removeItem('cr_admin_token');
-      $('adminUnlockedArea').classList.add('hidden');
+      setAdminLockedUI(false);
       return;
     }
     const { keys } = await res.json();
-    $('adminUnlockedArea').classList.remove('hidden');
+    setAdminLockedUI(true);
+    if (!silent) showToast('Admin session unlocked', 'ok');
 
     const tbody = $('adminKeysBody');
     tbody.innerHTML = keys
       .map(
         (k) => `
       <tr>
-        <td><strong>${escapeHtml(k.name)}</strong></td>
-        <td class="mono small">${escapeHtml(k.keyPrefix)}...</td>
+        <td class="key-name-cell">${escapeHtml(k.name)}</td>
+        <td class="mono small muted">${escapeHtml(k.keyPrefix)}...</td>
         <td class="mono small tabular">${k.rpmLimit} / ${k.burst}</td>
         <td class="mono small tabular">${k.dailyTokenBudget.toLocaleString()}</td>
         <td class="mono small tabular">v${k.cacheNamespace}</td>
@@ -664,35 +828,68 @@ print(response.choices[0].message.content)`,
         });
         if (r.ok) {
           const d = await r.json();
-          alert(`Zero-downtime cache invalidation complete! New namespace: v${d.newNamespace}`);
-          loadAdminKeys();
+          showToast(`Cache invalidated · active namespace bumped to v${d.newNamespace}`, 'ok');
+          loadAdminKeys(true);
+        } else {
+          showToast('Cache invalidation failed', 'err');
         }
       });
     });
 
     tbody.querySelectorAll('[data-rev]').forEach((b) => {
       b.addEventListener('click', async () => {
+        if (!b.classList.contains('confirming')) {
+          b.classList.add('confirming');
+          b.textContent = 'Confirm?';
+          setTimeout(() => {
+            b.classList.remove('confirming');
+            b.textContent = 'Revoke';
+          }, 4000);
+          return;
+        }
         const keyId = b.getAttribute('data-rev');
-        if (!confirm('Revoke this virtual API key?')) return;
-        await fetch(`/admin/keys/${encodeURIComponent(keyId)}`, {
+        const r = await fetch(`/admin/keys/${encodeURIComponent(keyId)}`, {
           method: 'DELETE',
           headers: { Authorization: 'Bearer ' + adminToken },
         });
-        loadAdminKeys();
+        if (r.ok) {
+          showToast('Virtual API key revoked', 'ok');
+          loadAdminKeys(true);
+        }
       });
     });
   }
 
   $('unlockAdminBtn').addEventListener('click', () => {
     adminToken = $('adminTokenInput').value.trim();
-    if (!adminToken) return;
+    if (!adminToken) {
+      showToast('Enter your ADMIN_TOKEN first', 'err');
+      return;
+    }
     sessionStorage.setItem('cr_admin_token', adminToken);
-    loadAdminKeys();
+    loadAdminKeys(false);
+  });
+
+  $('adminTokenInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') $('unlockAdminBtn').click();
+  });
+
+  $('lockAdminBtn').addEventListener('click', () => {
+    adminToken = '';
+    sessionStorage.removeItem('cr_admin_token');
+    $('adminTokenInput').value = '';
+    $('createdKeyBanner').classList.add('hidden');
+    setAdminLockedUI(false);
+    showToast('Admin session locked');
   });
 
   $('createKeyBtn').addEventListener('click', async () => {
     const name = $('newKeyName').value.trim();
-    if (!name) return alert('Enter a key name.');
+    if (!name) {
+      showToast('Enter a key name first', 'err');
+      $('newKeyName').focus();
+      return;
+    }
     const res = await fetch('/admin/keys', {
       method: 'POST',
       headers: {
@@ -709,18 +906,29 @@ print(response.choices[0].message.content)`,
     if (res.ok) {
       const created = await res.json();
       const banner = $('createdKeyBanner');
-      banner.innerHTML = `<strong>New Virtual Key Created (copy now — shown once):</strong><br/><code class="mono">${escapeHtml(created.key)}</code>`;
+      banner.innerHTML = `
+        <div>
+          <strong>Virtual Key Provisioned (shown once):</strong><br/>
+          <code class="mono created-key-code">${escapeHtml(created.key)}</code>
+        </div>
+        <button class="btn-secondary small" id="copyNewKeyBtn" type="button">Copy Key</button>
+      `;
       banner.classList.remove('hidden');
+      $('copyNewKeyBtn').addEventListener('click', () => copyText(created.key, 'New API key copied'));
       $('newKeyName').value = '';
-      loadAdminKeys();
+      showToast(`Created virtual key "${name}"`, 'ok');
+      loadAdminKeys(true);
+    } else {
+      showToast('Failed to provision key', 'err');
     }
   });
 
   loadHealth();
   loadTelemetry();
   renderSdkSnippet();
+  updateCharCount();
   if (adminToken) {
     $('adminTokenInput').value = adminToken;
-    loadAdminKeys();
+    loadAdminKeys(true);
   }
 })();
