@@ -1,6 +1,11 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type pg from 'pg';
-import type { AdminStatsSummary, RequestLogEntry, RequestLogSink } from '../ports/index.js';
+import type {
+  AdminStatsSummary,
+  RecentRequestLogItem,
+  RequestLogEntry,
+  RequestLogSink,
+} from '../ports/index.js';
 
 const WINDOW_INTERVALS: Record<'1h' | '24h' | '7d' | '30d', string> = {
   '1h': '1 hour',
@@ -149,5 +154,57 @@ export class PgRequestLogSink implements RequestLogSink {
       tokensSavedEstimate: Number(row?.tokens_saved ?? 0),
       providers,
     };
+  }
+
+  public async getRecentLogs(limit = 40): Promise<RecentRequestLogItem[]> {
+    const safeLimit = Math.min(100, Math.max(1, limit));
+    const result = await this.pool.query<{
+      id: number;
+      request_id: string;
+      model_alias: string;
+      provider: string;
+      upstream_model: string | null;
+      stream: boolean;
+      cache_status: string;
+      similarity: number | null;
+      status_code: number;
+      error_code: string | null;
+      attempts: number;
+      latency_ms: number;
+      ttft_ms: number | null;
+      prompt_tokens: number;
+      completion_tokens: number;
+      created_at: Date;
+    }>(
+      `
+      SELECT
+        id, request_id, model_alias, provider, upstream_model, stream,
+        cache_status, similarity, status_code, error_code, attempts,
+        latency_ms, ttft_ms, prompt_tokens, completion_tokens, created_at
+      FROM request_logs
+      ORDER BY created_at DESC
+      LIMIT $1
+      `,
+      [safeLimit],
+    );
+
+    return result.rows.map((r) => ({
+      id: Number(r.id),
+      requestId: r.request_id,
+      modelAlias: r.model_alias,
+      provider: r.provider,
+      upstreamModel: r.upstream_model,
+      stream: Boolean(r.stream),
+      cacheStatus: r.cache_status,
+      similarity: r.similarity !== null ? Number(r.similarity) : null,
+      statusCode: Number(r.status_code),
+      errorCode: r.error_code,
+      attempts: Number(r.attempts),
+      latencyMs: Number(r.latency_ms),
+      ttftMs: r.ttft_ms !== null ? Number(r.ttft_ms) : null,
+      promptTokens: Number(r.prompt_tokens),
+      completionTokens: Number(r.completion_tokens),
+      createdAt: new Date(r.created_at).toISOString(),
+    }));
   }
 }

@@ -38,6 +38,12 @@ export function registerAdminRoutes(
     requestLogSink: RequestLogSink;
   },
 ): void {
+  app.get('/admin/keys', async (request) => {
+    verifyAdminToken(request, deps.adminToken);
+    const keys = await deps.apiKeyRepository.listKeys();
+    return { keys };
+  });
+
   app.post('/admin/keys', async (request, reply) => {
     verifyAdminToken(request, deps.adminToken);
     const parsed = CreateKeyBodySchema.safeParse(request.body);

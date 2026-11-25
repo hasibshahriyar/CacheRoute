@@ -4,7 +4,12 @@ import type { Redis } from 'ioredis';
 import type pg from 'pg';
 import { GatewayError } from '../domain/GatewayError.js';
 import type { ApiKeyContext } from '../domain/types.js';
-import type { ApiKeyRepository, CreateApiKeyInput, CreatedApiKeyResult } from '../ports/index.js';
+import type {
+  ApiKeyRepository,
+  ApiKeySummary,
+  CreateApiKeyInput,
+  CreatedApiKeyResult,
+} from '../ports/index.js';
 
 export function hashApiKey(plaintextKey: string): string {
   return createHash('sha256').update(plaintextKey).digest('hex');
@@ -98,6 +103,43 @@ export class PgApiKeyRepository implements ApiKeyRepository {
       cacheNamespace: Number(row.cache_namespace),
       semanticCacheEnabled: Boolean(row.semantic_cache_enabled),
     };
+  }
+
+  public async listKeys(): Promise<ApiKeySummary[]> {
+    const result = await this.pool.query<{
+      id: string;
+      name: string;
+      key_prefix: string;
+      rpm_limit: number;
+      burst: number;
+      daily_token_budget: number;
+      cache_namespace: number;
+      semantic_cache_enabled: boolean;
+      created_at: Date;
+      revoked_at: Date | null;
+    }>(
+      `
+      SELECT
+        id, name, key_prefix, rpm_limit, burst,
+        daily_token_budget, cache_namespace, semantic_cache_enabled,
+        created_at, revoked_at
+      FROM api_keys
+      ORDER BY created_at DESC
+      LIMIT 50
+      `,
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      keyPrefix: row.key_prefix,
+      rpmLimit: Number(row.rpm_limit),
+      burst: Number(row.burst),
+      dailyTokenBudget: Number(row.daily_token_budget),
+      cacheNamespace: Number(row.cache_namespace),
+      semanticCacheEnabled: Boolean(row.semantic_cache_enabled),
+      createdAt: new Date(row.created_at).toISOString(),
+      revokedAt: row.revoked_at ? new Date(row.revoked_at).toISOString() : null,
+    }));
   }
 
   public async revokeKey(id: string): Promise<boolean> {
@@ -196,6 +238,10 @@ export class CachedApiKeyRepository implements ApiKeyRepository {
 
   public async createKey(input: CreateApiKeyInput): Promise<CreatedApiKeyResult> {
     return this.inner.createKey(input);
+  }
+
+  public async listKeys(): Promise<ApiKeySummary[]> {
+    return this.inner.listKeys();
   }
 
   public async revokeKey(id: string): Promise<boolean> {

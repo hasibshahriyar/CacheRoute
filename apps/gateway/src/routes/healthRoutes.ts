@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import type { Redis } from 'ioredis';
 import type pg from 'pg';
-import type { EmbeddingModel } from '../ports/index.js';
+import type { GatewayConfig } from '../config.js';
+import type { CircuitBreaker, EmbeddingModel, RequestLogSink } from '../ports/index.js';
 import type { MetricsRegistry } from '../services/MetricsRegistry.js';
 
 export function registerHealthRoutes(
@@ -11,6 +12,9 @@ export function registerHealthRoutes(
     pgPool: pg.Pool;
     embeddingModel: EmbeddingModel;
     metrics: MetricsRegistry;
+    requestLogSink: RequestLogSink;
+    circuitBreaker: CircuitBreaker;
+    config: GatewayConfig;
   },
 ): void {
   app.get('/', async () => ({
@@ -95,6 +99,64 @@ export function registerHealthRoutes(
     const output = await deps.metrics.registry.metrics();
     reply.header('Content-Type', deps.metrics.registry.contentType);
     return reply.send(output);
+  });
+
+  app.get('/v1/telemetry', async (request) => {
+    const query = (request.query ?? {}) as { window?: string; limit?: string };
+    const win =
+      query.window === '1h' ||
+      query.window === '24h' ||
+      query.window === '7d' ||
+      query.window === '30d'
+        ? query.window
+        : '24h';
+    const limit = Math.min(50, Math.max(5, Number(query.limit ?? 30) || 30));
+
+    const [stats, recentLogs] = await Promise.all([
+      deps.requestLogSink.getStats(win).catch(() => ({
+        window: win,
+        totalRequests: 0,
+        cache: { exactHits: 0, semanticHits: 0, misses: 0, bypass: 0, hitRate: 0 },
+        latencyMs: { p50: 0, p95: 0 },
+        tokensSavedEstimate: 0,
+        providers: {},
+      })),
+      deps.requestLogSink.getRecentLogs(limit).catch(() => []),
+    ]);
+
+    const providerNames = new Set<string>(['groq', 'gemini', 'openrouter']);
+    const routesSummary: Record<string, Array<{ provider: string; upstreamModel: string }>> = {};
+    for (const [alias, chain] of Object.entries(deps.config.routes)) {
+      routesSummary[alias] = chain.map((ep) => {
+        providerNames.add(ep.provider);
+        return {
+          provider: ep.provider,
+          upstreamModel: ep.upstreamModel,
+        };
+      });
+    }
+
+    const circuitBreakers: Record<string, string> = {};
+    await Promise.all(
+      Array.from(providerNames).map(async (provider) => {
+        circuitBreakers[provider] = await deps.circuitBreaker
+          .getState(provider)
+          .catch(() => 'CLOSED');
+      }),
+    );
+
+    return {
+      stats,
+      recentLogs,
+      circuitBreakers,
+      routes: routesSummary,
+      config: {
+        semanticThreshold: deps.config.env.SEMANTIC_THRESHOLD,
+        cacheTtlSeconds: deps.config.env.CACHE_TTL_SECONDS,
+        embeddingModel: 'Xenova/all-MiniLM-L6-v2 (q8, 384d)',
+        region: process.env.VERCEL_REGION ?? 'local',
+      },
+    };
   });
 
   // Phase 0 Deployment Spike diagnostic endpoints

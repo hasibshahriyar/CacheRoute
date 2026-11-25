@@ -118,13 +118,51 @@ export interface CreatedApiKeyResult {
   semanticCacheEnabled: boolean;
 }
 
+export interface ApiKeySummary {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  rpmLimit: number;
+  burst: number;
+  dailyTokenBudget: number;
+  cacheNamespace: number;
+  semanticCacheEnabled: boolean;
+  createdAt: string;
+  revokedAt: string | null;
+}
+
 export interface ApiKeyRepository {
   findByPlaintextKey(plaintextKey: string): Promise<ApiKeyContext | null>;
   createKey(input: CreateApiKeyInput): Promise<CreatedApiKeyResult>;
+  listKeys(): Promise<ApiKeySummary[]>;
   revokeKey(id: string): Promise<boolean>;
   incrementCacheNamespace(id: string): Promise<number | null>;
 }
 
+export interface RecentRequestLogItem {
+  id: number;
+  requestId: string;
+  modelAlias: string;
+  provider: string;
+  upstreamModel: string | null;
+  stream: boolean;
+  cacheStatus: string;
+  similarity: number | null;
+  statusCode: number;
+  errorCode: string | null;
+  attempts: number;
+  latencyMs: number;
+  ttftMs: number | null;
+  promptTokens: number;
+  completionTokens: number;
+  createdAt: string;
+}
+
+export interface RequestLogSink {
+  write(entry: RequestLogEntry): Promise<void>;
+  getStats(window: '1h' | '24h' | '7d' | '30d'): Promise<AdminStatsSummary>;
+  getRecentLogs(limit?: number): Promise<RecentRequestLogItem[]>;
+}
 export interface RequestLogEntry {
   requestId: string;
   tenantId: string | null;
@@ -159,11 +197,6 @@ export interface AdminStatsSummary {
   };
   tokensSavedEstimate: number;
   providers: Record<string, { requests: number; errors: number }>;
-}
-
-export interface RequestLogSink {
-  write(entry: RequestLogEntry): Promise<void>;
-  getStats(window: '1h' | '24h' | '7d' | '30d'): Promise<AdminStatsSummary>;
 }
 
 export interface UpstreamCompletionResult {

@@ -58,6 +58,9 @@ export function buildGatewayApp(overrides: ContainerOverrides = {}): GatewayApp 
     pgPool: container.pgPool,
     embeddingModel: container.embeddingModel,
     metrics: container.metrics,
+    requestLogSink: container.requestLogSink,
+    circuitBreaker: container.circuitBreaker,
+    config: container.config,
   });
 
   registerAdminRoutes(app, {
