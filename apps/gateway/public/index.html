@@ -350,6 +350,9 @@
       document.querySelectorAll('[data-prompt]').forEach((btn) => {
         btn.addEventListener('click', () => {
           document.getElementById('prompt').value = btn.getAttribute('data-prompt');
+          document.getElementById('metaBar').innerHTML = '';
+          document.getElementById('output').textContent = 'Preset loaded — press "Send" to run.';
+          document.getElementById('statusText').textContent = '';
         });
       });
 

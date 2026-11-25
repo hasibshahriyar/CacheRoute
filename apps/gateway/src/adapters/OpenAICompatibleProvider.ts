@@ -172,10 +172,12 @@ export class OpenAICompatibleProvider implements LlmProvider {
         headers.Authorization = `Bearer ${this.apiKey}`;
       }
 
+      const isGptOss = this.upstreamModel.startsWith('openai/gpt-oss-');
       const upstreamBody = {
         ...request,
         model: this.upstreamModel,
         stream: false,
+        ...(isGptOss && !('reasoning_effort' in request) ? { reasoning_effort: 'low' } : {}),
       };
 
       const res = await undiciFetch(url, {
@@ -236,6 +238,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
         headers.Authorization = `Bearer ${this.apiKey}`;
       }
 
+      const isGptOss = this.upstreamModel.startsWith('openai/gpt-oss-');
       const upstreamBody = {
         ...request,
         model: this.upstreamModel,
@@ -244,6 +247,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
           ...request.stream_options,
           include_usage: true,
         },
+        ...(isGptOss && !('reasoning_effort' in request) ? { reasoning_effort: 'low' } : {}),
       };
 
       const res = await undiciFetch(url, {
