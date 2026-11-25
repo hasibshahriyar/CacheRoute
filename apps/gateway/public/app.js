@@ -26,6 +26,17 @@
     return 'err';
   }
 
+  function renderLatencyWaterfall(ms) {
+    const num = Number(ms);
+    if (!Number.isFinite(num)) return `<span class="mono small muted">—</span>`;
+    const pct = Math.min(100, Math.max(4, Math.round((Math.log10(num + 1) / Math.log10(1500)) * 100)));
+    const cls = num <= 25 ? 'lat-fast' : num <= 100 ? 'lat-med' : 'lat-slow';
+    return `<div class="lat-cell">
+      <div class="lat-track"><div class="lat-fill ${cls}" style="width:${pct}%"></div></div>
+      <span class="mono small tabular">${num} ms</span>
+    </div>`;
+  }
+
   // -------------------------------------------------------------------------
   // Tab Navigation
   // -------------------------------------------------------------------------
@@ -57,15 +68,22 @@
       const p = data.providersConfigured || {};
       const provCount = [p.groq, p.gemini, p.openrouter].filter(Boolean).length;
 
-      $('dotPg').className = 'dot ' + (pgOk ? 'ok' : 'err');
+      $('dotPg').className = 'dot pulse ' + (pgOk ? 'ok' : 'err');
+      $('dotPgMobile').className = 'dot ' + (pgOk ? 'ok' : 'err');
       $('lblPg').textContent = pgOk ? 'ready' : 'down';
-      $('dotRedis').className = 'dot ' + (redisOk ? 'ok' : 'err');
+
+      $('dotRedis').className = 'dot pulse ' + (redisOk ? 'ok' : 'err');
+      $('dotRedisMobile').className = 'dot ' + (redisOk ? 'ok' : 'err');
       $('lblRedis').textContent = redisOk ? 'ready' : 'down';
-      $('dotProviders').className = 'dot ' + (provCount > 0 ? 'ok' : 'err');
+
+      $('dotProviders').className = 'dot pulse ' + (provCount > 0 ? 'ok' : 'err');
+      $('dotProvMobile').className = 'dot ' + (provCount > 0 ? 'ok' : 'err');
       $('lblProviders').textContent = `${provCount}/3 active`;
     } catch {
       $('dotPg').className = 'dot err';
       $('dotRedis').className = 'dot err';
+      $('dotPgMobile').className = 'dot err';
+      $('dotRedisMobile').className = 'dot err';
     }
   }
 
@@ -129,7 +147,7 @@
       $('nodeUpstreamSub').textContent = provider || 'Groq -> Gemini -> OR';
       $('pipelineSubtitle').textContent = entityTrap
         ? `Entity Guard skipped L2 semantic cache -> called ${provider} (${latencyMs} ms)`
-        : `Cache MISS -> routed to ${provider} (${latencyMs} ms) & persisted asynchronously`;
+        : `Cache MISS -> routed to ${provider} (${latencyMs} ms) & persisted via waitUntil`;
     }
 
     const simWrap = $('simBarWrap');
@@ -166,9 +184,16 @@
     btn.addEventListener('click', () => {
       $('prompt').value = btn.getAttribute('data-prompt') || '';
       $('metaBar').innerHTML = '';
-      $('output').textContent = 'Preset loaded — click "Send Request" to trace this prompt.';
+      $('output').textContent = 'Preset loaded — click "Send Request" (or Ctrl+Enter) to trace.';
       $('statusText').textContent = '';
     });
+  });
+
+  $('prompt').addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      executePlaygroundRequest();
+    }
   });
 
   async function executePlaygroundRequest(overridePrompt) {
@@ -221,12 +246,12 @@
       const badges = [
         `<span class="badge ${badgeClass(cache)}">Cache: ${escapeHtml(cache)}</span>`,
         `<span class="badge">Provider: ${escapeHtml(provider)}</span>`,
-        `<span class="badge">Gateway: ${escapeHtml(gwMs)} ms</span>`,
-        `<span class="badge">Attempts: ${escapeHtml(attempts)}</span>`,
+        `<span class="badge tabular">Gateway: ${escapeHtml(gwMs)} ms</span>`,
+        `<span class="badge tabular">Attempts: ${escapeHtml(attempts)}</span>`,
       ];
-      if (sim) badges.push(`<span class="badge semantic">Similarity: ${escapeHtml(sim)}</span>`);
+      if (sim) badges.push(`<span class="badge semantic tabular">Similarity: ${escapeHtml(sim)}</span>`);
       if (remaining !== null) {
-        badges.push(`<span class="badge">Quota left: ${escapeHtml(remaining)}</span>`);
+        badges.push(`<span class="badge tabular">Quota left: ${escapeHtml(remaining)}</span>`);
       }
       meta.innerHTML = badges.join('');
 
@@ -323,22 +348,25 @@
     const tbody = $('sessionHistoryBody');
     if (sessionHistory.length === 0) {
       tbody.innerHTML =
-        '<tr><td colspan="7" class="empty-cell">No requests sent in this browser session yet.</td></tr>';
+        '<tr><td colspan="5" class="empty-cell">No requests sent in this browser session yet.</td></tr>';
       return;
     }
     tbody.innerHTML = sessionHistory
       .map(
         (item, idx) => `
       <tr>
-        <td class="mono small muted">${escapeHtml(item.time)}</td>
-        <td class="prompt-cell" title="${escapeHtml(item.prompt)}">${escapeHtml(item.prompt)}</td>
+        <td class="prompt-cell" title="${escapeHtml(item.prompt)}">
+          <div>${escapeHtml(item.prompt)}</div>
+          <div class="mono muted" style="font-size:0.68rem">${escapeHtml(item.time)}${item.similarity ? ` · sim ${escapeHtml(item.similarity)}` : ''}</div>
+        </td>
         <td><span class="badge ${badgeClass(item.cache)}">${escapeHtml(item.cache)}</span></td>
         <td class="mono small">${escapeHtml(item.provider)}</td>
-        <td class="mono small">${escapeHtml(item.gwMs)} ms</td>
-        <td class="mono small purple">${item.similarity ? escapeHtml(item.similarity) : '—'}</td>
+        <td>${renderLatencyWaterfall(item.gwMs)}</td>
         <td>
-          <button class="btn-secondary small" data-inspect="${idx}" type="button">Inspect</button>
-          <button class="btn-secondary small" data-replay="${idx}" type="button">Replay</button>
+          <div class="row-actions">
+            <button class="btn-secondary small" data-inspect="${idx}" type="button">Inspect</button>
+            <button class="btn-secondary small" data-replay="${idx}" type="button">Replay</button>
+          </div>
         </td>
       </tr>
     `,
@@ -392,7 +420,6 @@
     $('kpiTokensSaved').textContent = s.tokensSavedEstimate.toLocaleString();
     $('kpiLatency').textContent = `${s.latencyMs.p50} / ${s.latencyMs.p95} ms`;
 
-    // Donut SVG
     const segments = [
       { label: 'HIT-EXACT (L1 Redis)', value: s.cache.exactHits, color: '#22c55e' },
       { label: 'HIT-SEMANTIC (L2 pgvector)', value: s.cache.semanticHits, color: '#a855f7' },
@@ -426,13 +453,12 @@
         (seg) => `
       <div class="legend-row">
         <span><span class="legend-dot" style="background:${seg.color}"></span>${seg.label}</span>
-        <span class="mono">${seg.value}</span>
+        <span class="mono tabular">${seg.value}</span>
       </div>
     `,
       )
       .join('');
 
-    // Failover Routes & Circuit Breakers
     const breakers = data.circuitBreakers || {};
     const routes = data.routes || {};
     const providersStats = s.providers || {};
@@ -447,7 +473,7 @@
             return `<div class="breaker-pill">
               <strong>${escapeHtml(ep.provider)}</strong>
               <span class="b-state b-${escapeHtml(state)}">${escapeHtml(state)}</span>
-              <div class="mono muted" style="font-size:10.5px">${escapeHtml(ep.upstreamModel)}${escapeHtml(statTag)}</div>
+              <div class="mono muted" style="font-size:0.68rem">${escapeHtml(ep.upstreamModel)}${escapeHtml(statTag)}</div>
             </div>`;
           })
           .join('<span class="p-arrow">&rarr;</span>');
@@ -472,7 +498,10 @@
     });
   });
 
-  $('closeLogDetail').addEventListener('click', () => $('logDetailCard').classList.add('hidden'));
+  $('closeLogDetail').addEventListener('click', () => {
+    $('logDetailCard').classList.add('hidden');
+    $('logsSplit').classList.remove('has-detail');
+  });
 
   function renderProductionLogs(logs) {
     const filtered = logs.filter((row) => {
@@ -493,14 +522,14 @@
         const ts = new Date(row.createdAt).toLocaleString();
         const statusCls = row.statusCode >= 400 ? 'err' : 'exact';
         return `<tr data-log-idx="${idx}">
-          <td class="mono small muted">${escapeHtml(ts)}</td>
-          <td><span class="badge ${statusCls}">${row.statusCode}</span></td>
+          <td class="mono small muted tabular">${escapeHtml(ts)}</td>
+          <td><span class="badge ${statusCls} tabular">${row.statusCode}</span></td>
           <td><span class="badge ${badgeClass(row.cacheStatus)}">${escapeHtml(row.cacheStatus)}</span></td>
           <td class="mono small">${escapeHtml(row.modelAlias)}</td>
           <td class="mono small">${escapeHtml(row.provider)}</td>
-          <td class="mono small">${row.latencyMs} ms</td>
-          <td class="mono small">${row.promptTokens + row.completionTokens}</td>
-          <td class="mono small purple">${row.similarity ? row.similarity.toFixed(4) : '—'}</td>
+          <td>${renderLatencyWaterfall(row.latencyMs)}</td>
+          <td class="mono small tabular">${row.promptTokens + row.completionTokens}</td>
+          <td class="mono small purple tabular">${row.similarity ? row.similarity.toFixed(4) : '—'}</td>
         </tr>`;
       })
       .join('');
@@ -510,6 +539,7 @@
         const row = filtered[Number(tr.getAttribute('data-log-idx'))];
         $('logDetailJson').textContent = JSON.stringify(row, null, 2);
         $('logDetailCard').classList.remove('hidden');
+        $('logsSplit').classList.add('has-detail');
       });
     });
   }
@@ -606,17 +636,19 @@ print(response.choices[0].message.content)`,
       <tr>
         <td><strong>${escapeHtml(k.name)}</strong></td>
         <td class="mono small">${escapeHtml(k.keyPrefix)}...</td>
-        <td class="mono small">${k.rpmLimit} / ${k.burst}</td>
-        <td class="mono small">${k.dailyTokenBudget.toLocaleString()}</td>
-        <td class="mono small">v${k.cacheNamespace}</td>
+        <td class="mono small tabular">${k.rpmLimit} / ${k.burst}</td>
+        <td class="mono small tabular">${k.dailyTokenBudget.toLocaleString()}</td>
+        <td class="mono small tabular">v${k.cacheNamespace}</td>
         <td><span class="badge ${k.revokedAt ? 'err' : 'exact'}">${k.revokedAt ? 'Revoked' : 'Active'}</span></td>
         <td>
+          <div class="row-actions">
           ${
             !k.revokedAt
               ? `<button class="btn-secondary small" data-inv="${escapeHtml(k.id)}" type="button">Flush Cache</button>
                  <button class="btn-danger" data-rev="${escapeHtml(k.id)}" type="button">Revoke</button>`
               : '<span class="muted small">—</span>'
           }
+          </div>
         </td>
       </tr>
     `,
@@ -684,7 +716,6 @@ print(response.choices[0].message.content)`,
     }
   });
 
-  // Initial Boot
   loadHealth();
   loadTelemetry();
   renderSdkSnippet();

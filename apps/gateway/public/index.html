@@ -15,15 +15,24 @@
   <body>
     <div class="shell">
       <aside class="sidebar">
-        <div class="brand">
-          <div class="brand-mark">CR</div>
-          <div>
-            <div class="brand-title">CacheRoute</div>
-            <div class="brand-sub">LLM Gateway · <span id="regionLabel">iad1</span></div>
+        <div class="sidebar-top">
+          <div class="brand">
+            <div class="brand-mark">CR</div>
+            <div class="brand-text">
+              <div class="brand-title">CacheRoute</div>
+              <div class="brand-sub">LLM Gateway · <span id="regionLabel">iad1</span></div>
+            </div>
+          </div>
+
+          <!-- Compact inline status pills (shown on mobile/tablet top bar) -->
+          <div class="mobile-health-strip">
+            <span class="mini-pill" title="Neon pgvector"><span class="dot" id="dotPgMobile"></span>PG</span>
+            <span class="mini-pill" title="Upstash Redis"><span class="dot" id="dotRedisMobile"></span>Redis</span>
+            <span class="mini-pill" title="LLM Providers"><span class="dot" id="dotProvMobile"></span>LLMs</span>
           </div>
         </div>
 
-        <nav class="nav" id="sidebarNav">
+        <nav class="nav" id="sidebarNav" aria-label="Console navigation">
           <button class="nav-item active" data-tab="playground" type="button">
             <span class="nav-icon">&#9654;</span>
             <span>Playground &amp; Tracer</span>
@@ -35,7 +44,7 @@
           <button class="nav-item" data-tab="logs" type="button">
             <span class="nav-icon">&#9776;</span>
             <span>Request Logs</span>
-            <span class="nav-count" id="navLogCount">0</span>
+            <span class="nav-count tabular" id="navLogCount">0</span>
           </button>
           <button class="nav-item" data-tab="sdk" type="button">
             <span class="nav-icon">&lt;/&gt;</span>
@@ -47,21 +56,21 @@
           <div class="health-box">
             <div class="health-title">Infrastructure Health</div>
             <div class="health-row">
-              <span><span class="dot" id="dotPg"></span>Neon pgvector</span>
-              <span class="mono muted" id="lblPg">...</span>
+              <span><span class="dot pulse" id="dotPg"></span>Neon pgvector</span>
+              <span class="mono muted tabular" id="lblPg">...</span>
             </div>
             <div class="health-row">
-              <span><span class="dot" id="dotRedis"></span>Upstash Redis</span>
-              <span class="mono muted" id="lblRedis">...</span>
+              <span><span class="dot pulse" id="dotRedis"></span>Upstash Redis</span>
+              <span class="mono muted tabular" id="lblRedis">...</span>
             </div>
             <div class="health-row">
-              <span><span class="dot" id="dotProviders"></span>LLM Failover Chain</span>
-              <span class="mono muted" id="lblProviders">...</span>
+              <span><span class="dot pulse" id="dotProviders"></span>LLM Failover</span>
+              <span class="mono muted tabular" id="lblProviders">...</span>
             </div>
           </div>
           <div class="footer-links">
             <a href="https://github.com/hasibshahriyar/CacheRoute" target="_blank" rel="noreferrer"
-              >GitHub Repo &nearr;</a
+              >GitHub &nearr;</a
             >
             <a href="/readyz" target="_blank" rel="noreferrer">/readyz</a>
             <a href="/debug/embed" target="_blank" rel="noreferrer">/embed</a>
@@ -70,451 +79,463 @@
       </aside>
 
       <main class="main">
-        <!-- ================================================================
-             TAB 1: PLAYGROUND & LIVE PIPELINE TRACER
-        ================================================================ -->
-        <section class="tab-panel active" id="tab-playground">
-          <div class="page-head">
-            <div>
-              <h1>Playground &amp; Live Request Pipeline</h1>
-              <p class="muted">
-                Send real prompts through CacheRoute and inspect exact/semantic cache short-circuits,
-                Entity Guard protection, and upstream failover in real time.
-              </p>
-            </div>
-            <div class="speedup-chip hidden" id="speedupChip"></div>
-          </div>
-
-          <!-- 7-Node Interactive Pipeline Diagram -->
-          <div class="card pipeline-card">
-            <div class="card-head-row">
-              <span class="eyebrow">Live Execution Path (11-Stage Pipeline)</span>
-              <span class="mono muted small" id="pipelineSubtitle"
-                >Send a prompt below to trace its route</span
-              >
-            </div>
-            <div class="pipeline" id="pipelineDiagram">
-              <div class="p-node" data-node="client">
-                <div class="p-step">1–3</div>
-                <div class="p-name">Auth &amp; Zod</div>
-                <div class="p-sub">cr_live_*</div>
+        <div class="main-inner">
+          <!-- ================================================================
+               TAB 1: PLAYGROUND & LIVE PIPELINE TRACER
+          ================================================================ -->
+          <section class="tab-panel active" id="tab-playground">
+            <div class="page-head">
+              <div>
+                <h1>Playground &amp; Live Request Pipeline</h1>
+                <p class="muted">
+                  Send real prompts through CacheRoute and trace L1 Redis exact hits, L2 pgvector
+                  semantic hits, Entity Guard protection, and Groq &rarr; Gemini &rarr; OpenRouter failover.
+                </p>
               </div>
-              <div class="p-arrow">&rarr;</div>
-              <div class="p-node" data-node="ratelimit">
-                <div class="p-step">4</div>
-                <div class="p-name">Rate Limit</div>
-                <div class="p-sub">Lua Bucket</div>
-              </div>
-              <div class="p-arrow">&rarr;</div>
-              <div class="p-node" data-node="guard">
-                <div class="p-step">5</div>
-                <div class="p-name">Entity Guard</div>
-                <div class="p-sub">Policy Check</div>
-              </div>
-              <div class="p-arrow">&rarr;</div>
-              <div class="p-node" data-node="l1">
-                <div class="p-step">6</div>
-                <div class="p-name">L1 Exact</div>
-                <div class="p-sub">Upstash Redis</div>
-              </div>
-              <div class="p-arrow">&rarr;</div>
-              <div class="p-node" data-node="l2">
-                <div class="p-step">7</div>
-                <div class="p-name">L2 Semantic</div>
-                <div class="p-sub">ONNX + HNSW</div>
-              </div>
-              <div class="p-arrow">&rarr;</div>
-              <div class="p-node" data-node="upstream">
-                <div class="p-step">8–10</div>
-                <div class="p-name">Provider Router</div>
-                <div class="p-sub" id="nodeUpstreamSub">Groq &rarr; Gemini &rarr; OR</div>
-              </div>
+              <div class="speedup-chip tabular hidden" id="speedupChip"></div>
             </div>
 
-            <!-- Semantic Similarity Gauge (visible on HIT-SEMANTIC) -->
-            <div class="sim-bar-wrap hidden" id="simBarWrap">
-              <div class="sim-bar-head">
-                <span>Cosine Similarity (Xenova/all-MiniLM-L6-v2 q8 · 384 dims)</span>
-                <span class="mono" id="simBarVal">0.0000</span>
+            <!-- 6-Node Interactive Pipeline Diagram -->
+            <div class="card pipeline-card">
+              <div class="card-head-row">
+                <span class="eyebrow">Live Execution Path · 11-Stage Gateway Pipeline</span>
+                <span class="mono muted small" id="pipelineSubtitle"
+                  >Send a prompt below to trace its route</span
+                >
               </div>
-              <div class="sim-track">
-                <div class="sim-threshold" style="left: 92%" title="Calibrated threshold: 0.92"></div>
-                <div class="sim-fill" id="simBarFill" style="width: 0%"></div>
+              <div class="pipeline" id="pipelineDiagram">
+                <div class="p-node" data-node="client">
+                  <div class="p-step">Stage 1–3</div>
+                  <div class="p-name">Auth &amp; Zod</div>
+                  <div class="p-sub">SHA-256 cr_live_*</div>
+                </div>
+                <div class="p-arrow" aria-hidden="true">&rarr;</div>
+                <div class="p-node" data-node="ratelimit">
+                  <div class="p-step">Stage 4</div>
+                  <div class="p-name">Rate Limit</div>
+                  <div class="p-sub">Redis Lua Bucket</div>
+                </div>
+                <div class="p-arrow" aria-hidden="true">&rarr;</div>
+                <div class="p-node" data-node="guard">
+                  <div class="p-step">Stage 5</div>
+                  <div class="p-name">Entity Guard</div>
+                  <div class="p-sub">Digits / Email / URL</div>
+                </div>
+                <div class="p-arrow" aria-hidden="true">&rarr;</div>
+                <div class="p-node" data-node="l1">
+                  <div class="p-step">Stage 6</div>
+                  <div class="p-name">L1 Exact</div>
+                  <div class="p-sub">Upstash Redis</div>
+                </div>
+                <div class="p-arrow" aria-hidden="true">&rarr;</div>
+                <div class="p-node" data-node="l2">
+                  <div class="p-step">Stage 7</div>
+                  <div class="p-name">L2 Semantic</div>
+                  <div class="p-sub">ONNX 384d + HNSW</div>
+                </div>
+                <div class="p-arrow" aria-hidden="true">&rarr;</div>
+                <div class="p-node" data-node="upstream">
+                  <div class="p-step">Stage 8–10</div>
+                  <div class="p-name">Provider Router</div>
+                  <div class="p-sub" id="nodeUpstreamSub">Groq &rarr; Gemini &rarr; OR</div>
+                </div>
               </div>
-              <div class="sim-labels mono">
-                <span>0.00</span>
-                <span>Threshold: 0.92 (0.00% FPR)</span>
-                <span>1.00</span>
-              </div>
-            </div>
-          </div>
 
-          <!-- Prompt Workbench -->
-          <div class="card">
-            <div class="presets">
-              <button
-                type="button"
-                class="preset-btn"
-                data-prompt="Explain what a Redis Lua script is in one short sentence."
-                data-label="Original Prompt"
-              >
-                1. Original Prompt <span class="tag-mini">MISS / L1</span>
-              </button>
-              <button
-                type="button"
-                class="preset-btn"
-                data-prompt="In one short sentence, explain what a Lua script in Redis is."
-                data-label="Paraphrase"
-              >
-                2. Paraphrase <span class="tag-mini purple">L2 Semantic</span>
-              </button>
-              <button
-                type="button"
-                class="preset-btn"
-                data-prompt="What is the status of order 1421?"
-                data-label="Entity Guard 1421"
-              >
-                3. Order 1421 <span class="tag-mini amber">Entity Guard</span>
-              </button>
-              <button
-                type="button"
-                class="preset-btn"
-                data-prompt="What is the status of order 1422?"
-                data-label="Entity Guard 1422"
-              >
-                4. Order 1422 <span class="tag-mini amber">Entity Guard</span>
-              </button>
-              <button
-                type="button"
-                class="preset-btn"
-                data-prompt="Explain how HNSW vector indexing speeds up nearest-neighbor search in one sentence."
-                data-label="Fresh Topic"
-              >
-                5. Fresh Question <span class="tag-mini">MISS &rarr; Cache</span>
-              </button>
-            </div>
-
-            <div class="controls-row">
-              <div class="field grow">
-                <label>Virtual API Key</label>
-                <input
-                  id="apiKey"
-                  type="password"
-                  value="cr_live_e1354cd8b38739f516a950bc66c000a2"
-                  placeholder="cr_live_..."
-                />
-              </div>
-              <div class="field">
-                <label>Model Alias</label>
-                <select id="model">
-                  <option value="cr-fast">cr-fast (Groq 20B &rarr; Gemini Lite &rarr; OR)</option>
-                  <option value="cr-smart">cr-smart (Groq 120B &rarr; Gemini Flash &rarr; OR)</option>
-                </select>
-              </div>
-              <div class="field toggles-field">
-                <label>Options</label>
-                <div class="toggles">
-                  <label class="toggle-pill"><input id="bypass" type="checkbox" /> Bypass</label>
-                  <label class="toggle-pill"><input id="stream" type="checkbox" /> SSE Stream</label>
+              <!-- Semantic Similarity Gauge (visible on HIT-SEMANTIC) -->
+              <div class="sim-bar-wrap hidden" id="simBarWrap">
+                <div class="sim-bar-head">
+                  <span>Cosine Similarity (Xenova/all-MiniLM-L6-v2 q8 · 384 dims)</span>
+                  <span class="mono tabular" id="simBarVal">0.0000</span>
+                </div>
+                <div class="sim-track">
+                  <div class="sim-threshold" style="left: 92%" title="Calibrated threshold: 0.92"></div>
+                  <div class="sim-fill" id="simBarFill" style="width: 0%"></div>
+                </div>
+                <div class="sim-labels mono tabular">
+                  <span>0.00</span>
+                  <span>Calibrated Threshold: 0.92 (0.00% FPR)</span>
+                  <span>1.00</span>
                 </div>
               </div>
             </div>
 
-            <div class="field">
-              <label>User Prompt</label>
-              <textarea id="prompt">Explain what a Redis Lua script is in one short sentence.</textarea>
+            <!-- Adaptive 1-col (standard) -> 2-col (ultrawide / 4K >= 1520px) -->
+            <div class="playground-split">
+              <!-- Prompt Workbench -->
+              <div class="card workbench-card">
+                <div class="card-head-row">
+                  <h2>Prompt Workbench</h2>
+                  <span class="muted small mono">Ctrl + Enter to send</span>
+                </div>
+
+                <div class="presets">
+                  <button
+                    type="button"
+                    class="preset-btn"
+                    data-prompt="Explain what a Redis Lua script is in one short sentence."
+                  >
+                    1. Original <span class="tag-mini">MISS / L1</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="preset-btn"
+                    data-prompt="In one short sentence, explain what a Lua script in Redis is."
+                  >
+                    2. Paraphrase <span class="tag-mini purple">L2 Semantic</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="preset-btn"
+                    data-prompt="What is the status of order 1421?"
+                  >
+                    3. Order 1421 <span class="tag-mini amber">Entity Guard</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="preset-btn"
+                    data-prompt="What is the status of order 1422?"
+                  >
+                    4. Order 1422 <span class="tag-mini amber">Entity Guard</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="preset-btn"
+                    data-prompt="Explain how HNSW vector indexing speeds up nearest-neighbor search in one sentence."
+                  >
+                    5. Fresh Topic <span class="tag-mini">MISS &rarr; Cache</span>
+                  </button>
+                </div>
+
+                <div class="controls-grid">
+                  <div class="field">
+                    <label for="apiKey">Virtual API Key</label>
+                    <input
+                      id="apiKey"
+                      type="password"
+                      value="cr_live_e1354cd8b38739f516a950bc66c000a2"
+                      placeholder="cr_live_..."
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="model">Model Alias</label>
+                    <select id="model">
+                      <option value="cr-fast">cr-fast (Groq 20B &rarr; Gemini Lite &rarr; OR)</option>
+                      <option value="cr-smart">cr-smart (Groq 120B &rarr; Gemini Flash &rarr; OR)</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>Request Options</label>
+                    <div class="toggles">
+                      <label class="toggle-pill"><input id="bypass" type="checkbox" /> Bypass</label>
+                      <label class="toggle-pill"><input id="stream" type="checkbox" /> SSE Stream</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="prompt">User Prompt</label>
+                  <textarea id="prompt">Explain what a Redis Lua script is in one short sentence.</textarea>
+                </div>
+
+                <div class="action-bar">
+                  <button id="sendBtn" class="btn-primary" type="button">
+                    Send Request <span class="kbd">Ctrl&#8629;</span>
+                  </button>
+                  <span class="mono muted small tabular" id="statusText"></span>
+                </div>
+
+                <div class="meta-bar" id="metaBar"></div>
+                <pre class="output-box" id="output">Choose a preset above and click "Send Request" to inspect the live gateway pipeline.</pre>
+              </div>
+
+              <!-- Session Trace History -->
+              <div class="card history-card">
+                <div class="card-head-row">
+                  <h2>Session Trace History</h2>
+                  <span class="muted small">Inspect headers or 1-click replay</span>
+                </div>
+                <div class="table-wrap">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Prompt</th>
+                        <th>Cache</th>
+                        <th>Provider</th>
+                        <th>Latency</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sessionHistoryBody">
+                      <tr>
+                        <td colspan="5" class="empty-cell">
+                          No requests sent in this browser session yet.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ================================================================
+               TAB 2: LIVE ANALYTICS & CIRCUIT BREAKERS
+          ================================================================ -->
+          <section class="tab-panel" id="tab-analytics">
+            <div class="page-head">
+              <div>
+                <h1>Live Production Analytics &amp; Circuit Breakers</h1>
+                <p class="muted">
+                  Real metrics queried from Neon PostgreSQL (<span class="mono">request_logs</span>)
+                  and live distributed breaker state from Upstash Redis.
+                </p>
+              </div>
+              <div class="window-switcher" id="windowSwitcher">
+                <button class="win-btn" data-win="1h" type="button">1h</button>
+                <button class="win-btn active" data-win="24h" type="button">24h</button>
+                <button class="win-btn" data-win="7d" type="button">7d</button>
+                <button class="win-btn" data-win="30d" type="button">30d</button>
+                <button class="win-btn" id="refreshAnalyticsBtn" type="button" title="Refresh">&#8635;</button>
+              </div>
             </div>
 
-            <div class="action-bar">
-              <button id="sendBtn" class="btn-primary" type="button">
-                Send Request &rarr; /v1/chat/completions
-              </button>
-              <span class="mono muted small" id="statusText"></span>
+            <div class="kpi-grid">
+              <div class="kpi-card">
+                <div class="kpi-label">Total Requests</div>
+                <div class="kpi-val tabular" id="kpiTotal">—</div>
+                <div class="kpi-sub muted" id="kpiWindowLabel">Last 24h</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Live Cache Hit Rate</div>
+                <div class="kpi-val green tabular" id="kpiHitRate">—</div>
+                <div class="kpi-sub muted tabular" id="kpiHitBreakdown">Exact + Semantic</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Tokens Saved (Est.)</div>
+                <div class="kpi-val cyan tabular" id="kpiTokensSaved">—</div>
+                <div class="kpi-sub muted">Avoided upstream spend</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Gateway Latency</div>
+                <div class="kpi-val tabular" id="kpiLatency">—</div>
+                <div class="kpi-sub muted">p50 / p95 across window</div>
+              </div>
             </div>
 
-            <div class="meta-bar" id="metaBar"></div>
-            <pre class="output-box" id="output">Choose a preset above and click "Send Request" to inspect the live gateway pipeline.</pre>
-          </div>
+            <div class="two-col">
+              <div class="card">
+                <h2>Cache Tier Distribution</h2>
+                <div class="donut-layout">
+                  <svg class="donut-svg" viewBox="0 0 120 120" id="cacheDonut">
+                    <circle cx="60" cy="60" r="46" fill="none" stroke="#1e1e26" stroke-width="14" />
+                  </svg>
+                  <div class="legend" id="cacheLegend"></div>
+                </div>
+              </div>
 
-          <!-- Session Trace History -->
-          <div class="card">
-            <div class="card-head-row">
-              <h2>Session Trace History</h2>
-              <span class="muted small">Click any row to inspect response headers or replay</span>
+              <div class="card">
+                <h2>Failover Routes &amp; Circuit Breakers</h2>
+                <div id="breakerMatrix" class="breaker-list"></div>
+              </div>
             </div>
-            <div class="table-wrap">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Time</th>
-                    <th>Prompt</th>
-                    <th>Cache</th>
-                    <th>Provider</th>
-                    <th>Gateway ms</th>
-                    <th>Similarity</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="sessionHistoryBody">
-                  <tr>
-                    <td colspan="7" class="empty-cell">
-                      No requests sent in this browser session yet.
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
 
-        <!-- ================================================================
-             TAB 2: LIVE ANALYTICS & CIRCUIT BREAKERS
-        ================================================================ -->
-        <section class="tab-panel" id="tab-analytics">
-          <div class="page-head">
-            <div>
-              <h1>Live Production Analytics &amp; Circuit Breakers</h1>
-              <p class="muted">
-                Real metrics queried from Neon PostgreSQL (<span class="mono">request_logs</span>)
-                and live distributed breaker state from Upstash Redis.
-              </p>
-            </div>
-            <div class="window-switcher" id="windowSwitcher">
-              <button class="win-btn" data-win="1h" type="button">1h</button>
-              <button class="win-btn active" data-win="24h" type="button">24h</button>
-              <button class="win-btn" data-win="7d" type="button">7d</button>
-              <button class="win-btn" data-win="30d" type="button">30d</button>
-              <button class="win-btn" id="refreshAnalyticsBtn" type="button">&#8635;</button>
-            </div>
-          </div>
-
-          <div class="kpi-grid">
-            <div class="kpi-card">
-              <div class="kpi-label">Total Requests</div>
-              <div class="kpi-val" id="kpiTotal">—</div>
-              <div class="kpi-sub muted" id="kpiWindowLabel">Last 24h</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">Live Cache Hit Rate</div>
-              <div class="kpi-val green" id="kpiHitRate">—</div>
-              <div class="kpi-sub muted" id="kpiHitBreakdown">Exact + Semantic</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">Tokens Saved (Est.)</div>
-              <div class="kpi-val cyan" id="kpiTokensSaved">—</div>
-              <div class="kpi-sub muted">Avoided upstream spend</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">Gateway Latency</div>
-              <div class="kpi-val" id="kpiLatency">—</div>
-              <div class="kpi-sub muted">p50 / p95 across window</div>
-            </div>
-          </div>
-
-          <div class="two-col">
-            <!-- Cache Distribution Visual -->
             <div class="card">
-              <h2>Cache Tier Distribution</h2>
-              <div class="donut-layout">
-                <svg class="donut-svg" viewBox="0 0 120 120" id="cacheDonut">
-                  <circle cx="60" cy="60" r="46" fill="none" stroke="#1e1e26" stroke-width="14" />
-                </svg>
-                <div class="legend" id="cacheLegend"></div>
+              <div class="card-head-row">
+                <h2>Verified Local Benchmarks (B1–B5 · Docker Compose + mock-llm)</h2>
+                <span class="mono muted small">Ryzen 7 7700 · Node 24 · pgvector:pg17 · Redis 7</span>
               </div>
-            </div>
-
-            <!-- Live Failover & Circuit Breaker Matrix -->
-            <div class="card">
-              <h2>Failover Routes &amp; Circuit Breakers</h2>
-              <div id="breakerMatrix" class="breaker-list"></div>
-            </div>
-          </div>
-
-          <!-- Verified Local Benchmarks Reference -->
-          <div class="card">
-            <div class="card-head-row">
-              <h2>Verified Local Benchmarks (B1–B5 · Docker Compose + mock-llm)</h2>
-              <span class="mono muted small">Ryzen 7 7700 · Node 24 · pgvector:pg17 · Redis 7</span>
-            </div>
-            <div class="bench-grid">
-              <div class="bench-item">
-                <div class="bench-id">B1 · Overhead</div>
-                <div class="bench-num">14.92 ms</div>
-                <div class="bench-sub">Added p95 (target &lt; 15 ms)</div>
-              </div>
-              <div class="bench-item">
-                <div class="bench-id">B2 · Two-Tier Cache</div>
-                <div class="bench-num">7.08 / 15.25 ms</div>
-                <div class="bench-sub">L1 / L2 p95 · 0.00% FPR</div>
-              </div>
-              <div class="bench-item">
-                <div class="bench-id">B3 · Failover</div>
-                <div class="bench-num green">100.0%</div>
-                <div class="bench-sub">200/200 under 35% primary faults</div>
-              </div>
-              <div class="bench-item">
-                <div class="bench-id">B4 · Rate Limit</div>
-                <div class="bench-num">20 OK / 80 429</div>
-                <div class="bench-sub">Exact atomic Lua accuracy</div>
-              </div>
-              <div class="bench-item">
-                <div class="bench-id">B5 · Peak RPS</div>
-                <div class="bench-num cyan">3,526 RPS</div>
-                <div class="bench-sub">p95 = 19.19 ms @ 40 VUs</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ================================================================
-             TAB 3: REQUEST LOGS EXPLORER
-        ================================================================ -->
-        <section class="tab-panel" id="tab-logs">
-          <div class="page-head">
-            <div>
-              <h1>Production Request Logs</h1>
-              <p class="muted">
-                Live audit stream from Neon PostgreSQL (<span class="mono">request_logs</span> via
-                Vercel <span class="mono">waitUntil</span>).
-              </p>
-            </div>
-            <button class="btn-secondary" id="refreshLogsBtn" type="button">&#8635; Refresh Logs</button>
-          </div>
-
-          <div class="card">
-            <div class="filter-chips" id="logFilters">
-              <button class="chip active" data-filter="ALL" type="button">All</button>
-              <button class="chip" data-filter="HIT-EXACT" type="button">HIT-EXACT</button>
-              <button class="chip" data-filter="HIT-SEMANTIC" type="button">HIT-SEMANTIC</button>
-              <button class="chip" data-filter="MISS" type="button">MISS</button>
-              <button class="chip" data-filter="BYPASS" type="button">BYPASS</button>
-              <button class="chip" data-filter="ERROR" type="button">Errors (4xx/5xx)</button>
-            </div>
-
-            <div class="table-wrap">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Timestamp</th>
-                    <th>Status</th>
-                    <th>Cache</th>
-                    <th>Model</th>
-                    <th>Provider</th>
-                    <th>Latency</th>
-                    <th>Tokens</th>
-                    <th>Similarity</th>
-                  </tr>
-                </thead>
-                <tbody id="prodLogsBody">
-                  <tr>
-                    <td colspan="8" class="empty-cell">Loading production logs...</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="card hidden" id="logDetailCard">
-            <div class="card-head-row">
-              <h2>Trace Inspector</h2>
-              <button class="btn-secondary small" id="closeLogDetail" type="button">Close</button>
-            </div>
-            <pre class="output-box mono" id="logDetailJson"></pre>
-          </div>
-        </section>
-
-        <!-- ================================================================
-             TAB 4: DROP-IN SDK QUICKSTART & ADMIN CONTROL PLANE
-        ================================================================ -->
-        <section class="tab-panel" id="tab-sdk">
-          <div class="page-head">
-            <div>
-              <h1>Drop-In OpenAI SDK &amp; Admin Control Plane</h1>
-              <p class="muted">
-                Point any OpenAI-compatible app at CacheRoute by changing only
-                <span class="mono">baseURL</span> and <span class="mono">apiKey</span>.
-              </p>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-head-row">
-              <h2>1-Line Integration Snippets</h2>
-              <div class="sdk-tabs" id="sdkTabs">
-                <button class="chip active" data-lang="ts" type="button">TypeScript (OpenAI SDK)</button>
-                <button class="chip" data-lang="py" type="button">Python (OpenAI SDK)</button>
-                <button class="chip" data-lang="curl" type="button">curl</button>
-              </div>
-            </div>
-            <pre class="code-box mono" id="sdkCodeBox"></pre>
-            <div class="action-bar">
-              <button class="btn-secondary" id="copySdkBtn" type="button">Copy Snippet</button>
-              <span class="muted small" id="copySdkStatus"></span>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-head-row">
-              <h2>Admin Control Plane (Virtual Keys &amp; Cache Invalidation)</h2>
-              <span class="muted small">Requires ADMIN_TOKEN (kept only in browser session)</span>
-            </div>
-
-            <div class="controls-row">
-              <div class="field grow">
-                <label>ADMIN_TOKEN</label>
-                <input id="adminTokenInput" type="password" placeholder="Enter your ADMIN_TOKEN..." />
-              </div>
-              <div class="field" style="align-self: flex-end">
-                <button class="btn-primary" id="unlockAdminBtn" type="button">Unlock Admin</button>
-              </div>
-            </div>
-
-            <div id="adminUnlockedArea" class="hidden">
-              <div class="divider"></div>
-              <h3 style="margin: 0 0 12px; font-size: 15px">Create Virtual API Key</h3>
-              <div class="controls-row">
-                <div class="field grow">
-                  <label>Key Name</label>
-                  <input id="newKeyName" type="text" placeholder="e.g. portfolio-demo" />
+              <div class="bench-grid">
+                <div class="bench-item">
+                  <div class="bench-id">B1 · Overhead</div>
+                  <div class="bench-num tabular">14.92 ms</div>
+                  <div class="bench-sub">Added p95 (target &lt; 15 ms)</div>
                 </div>
-                <div class="field" style="width: 110px">
-                  <label>RPM</label>
-                  <input id="newKeyRpm" type="number" value="30" />
+                <div class="bench-item">
+                  <div class="bench-id">B2 · Two-Tier Cache</div>
+                  <div class="bench-num tabular">7.08 / 15.25 ms</div>
+                  <div class="bench-sub">L1 / L2 p95 · 0.00% FPR</div>
                 </div>
-                <div class="field" style="width: 100px">
-                  <label>Burst</label>
-                  <input id="newKeyBurst" type="number" value="10" />
+                <div class="bench-item">
+                  <div class="bench-id">B3 · Failover</div>
+                  <div class="bench-num green tabular">100.0%</div>
+                  <div class="bench-sub">200/200 under 35% primary faults</div>
                 </div>
-                <div class="field" style="width: 150px">
-                  <label>Daily Tokens</label>
-                  <input id="newKeyBudget" type="number" value="50000" />
+                <div class="bench-item">
+                  <div class="bench-id">B4 · Rate Limit</div>
+                  <div class="bench-num tabular">20 OK / 80 429</div>
+                  <div class="bench-sub">Exact atomic Lua accuracy</div>
                 </div>
-                <div class="field" style="align-self: flex-end">
-                  <button class="btn-primary" id="createKeyBtn" type="button">+ Create Key</button>
+                <div class="bench-item">
+                  <div class="bench-id">B5 · Peak RPS</div>
+                  <div class="bench-num cyan tabular">3,526 RPS</div>
+                  <div class="bench-sub">p95 = 19.19 ms @ 40 VUs</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ================================================================
+               TAB 3: REQUEST LOGS EXPLORER
+          ================================================================ -->
+          <section class="tab-panel" id="tab-logs">
+            <div class="page-head">
+              <div>
+                <h1>Production Request Logs</h1>
+                <p class="muted">
+                  Live audit stream from Neon PostgreSQL (<span class="mono">request_logs</span> via
+                  Vercel <span class="mono">waitUntil</span>). Click any row to inspect its trace.
+                </p>
+              </div>
+              <button class="btn-secondary" id="refreshLogsBtn" type="button">&#8635; Refresh Logs</button>
+            </div>
+
+            <div class="logs-split" id="logsSplit">
+              <div class="card logs-table-card">
+                <div class="filter-chips" id="logFilters">
+                  <button class="chip active" data-filter="ALL" type="button">All</button>
+                  <button class="chip" data-filter="HIT-EXACT" type="button">HIT-EXACT</button>
+                  <button class="chip" data-filter="HIT-SEMANTIC" type="button">HIT-SEMANTIC</button>
+                  <button class="chip" data-filter="MISS" type="button">MISS</button>
+                  <button class="chip" data-filter="BYPASS" type="button">BYPASS</button>
+                  <button class="chip" data-filter="ERROR" type="button">Errors (4xx/5xx)</button>
+                </div>
+
+                <div class="table-wrap">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Timestamp</th>
+                        <th>Status</th>
+                        <th>Cache</th>
+                        <th>Model</th>
+                        <th>Provider</th>
+                        <th>Latency Waterfall</th>
+                        <th>Tokens</th>
+                        <th>Similarity</th>
+                      </tr>
+                    </thead>
+                    <tbody id="prodLogsBody">
+                      <tr>
+                        <td colspan="8" class="empty-cell">Loading production logs...</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              <div class="created-key-banner hidden" id="createdKeyBanner"></div>
-
-              <div class="table-wrap" style="margin-top: 16px">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Prefix</th>
-                      <th>RPM / Burst</th>
-                      <th>Daily Budget</th>
-                      <th>Namespace</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="adminKeysBody"></tbody>
-                </table>
+              <div class="card trace-drawer-card hidden" id="logDetailCard">
+                <div class="card-head-row">
+                  <h2>Trace Inspector</h2>
+                  <button class="btn-secondary small" id="closeLogDetail" type="button">Close</button>
+                </div>
+                <pre class="output-box mono" id="logDetailJson"></pre>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+
+          <!-- ================================================================
+               TAB 4: DROP-IN SDK QUICKSTART & ADMIN CONTROL PLANE
+          ================================================================ -->
+          <section class="tab-panel" id="tab-sdk">
+            <div class="page-head">
+              <div>
+                <h1>Drop-In OpenAI SDK &amp; Admin Control Plane</h1>
+                <p class="muted">
+                  Point any OpenAI-compatible app at CacheRoute by changing only
+                  <span class="mono">baseURL</span> and <span class="mono">apiKey</span>.
+                </p>
+              </div>
+            </div>
+
+            <div class="sdk-admin-split">
+              <div class="card">
+                <div class="card-head-row">
+                  <h2>1-Line Integration Snippets</h2>
+                  <div class="sdk-tabs" id="sdkTabs">
+                    <button class="chip active" data-lang="ts" type="button">TypeScript</button>
+                    <button class="chip" data-lang="py" type="button">Python</button>
+                    <button class="chip" data-lang="curl" type="button">curl</button>
+                  </div>
+                </div>
+                <pre class="code-box mono" id="sdkCodeBox"></pre>
+                <div class="action-bar">
+                  <button class="btn-secondary" id="copySdkBtn" type="button">Copy Snippet</button>
+                  <span class="muted small" id="copySdkStatus"></span>
+                </div>
+              </div>
+
+              <div class="card admin-card">
+                <div class="card-head-row">
+                  <h2>Admin Control Plane</h2>
+                  <span class="muted small">Session-only ADMIN_TOKEN</span>
+                </div>
+
+                <div class="admin-unlock-grid">
+                  <div class="field">
+                    <label for="adminTokenInput">ADMIN_TOKEN</label>
+                    <input
+                      id="adminTokenInput"
+                      type="password"
+                      placeholder="Enter your ADMIN_TOKEN..."
+                    />
+                  </div>
+                  <div class="field align-end">
+                    <button class="btn-primary full-width" id="unlockAdminBtn" type="button">
+                      Unlock Admin
+                    </button>
+                  </div>
+                </div>
+
+                <div id="adminUnlockedArea" class="hidden">
+                  <div class="divider"></div>
+                  <h3 class="subhead">Create Virtual API Key</h3>
+                  <div class="create-key-grid">
+                    <div class="field key-name-field">
+                      <label for="newKeyName">Key Name</label>
+                      <input id="newKeyName" type="text" placeholder="e.g. portfolio-demo" />
+                    </div>
+                    <div class="field">
+                      <label for="newKeyRpm">RPM</label>
+                      <input id="newKeyRpm" type="number" value="30" />
+                    </div>
+                    <div class="field">
+                      <label for="newKeyBurst">Burst</label>
+                      <input id="newKeyBurst" type="number" value="10" />
+                    </div>
+                    <div class="field key-budget-field">
+                      <label for="newKeyBudget">Daily Tokens</label>
+                      <input id="newKeyBudget" type="number" value="50000" />
+                    </div>
+                    <div class="field align-end key-btn-field">
+                      <button class="btn-primary full-width" id="createKeyBtn" type="button">
+                        + Create Key
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="created-key-banner hidden" id="createdKeyBanner"></div>
+
+                  <div class="table-wrap" style="margin-top: 16px">
+                    <table class="data-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Prefix</th>
+                          <th>RPM / Burst</th>
+                          <th>Daily Budget</th>
+                          <th>Namespace</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody id="adminKeysBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
       </main>
     </div>
 
